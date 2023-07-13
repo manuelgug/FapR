@@ -60,11 +60,11 @@ Alleles are sorted by frequency and grouped accordingly.
 
 Amplicons are sorted in descending order by the number of alleles. Phasing is performed on adjacent pairs of amplicons, where each adjacent pair consists of a MajAMP (amplicon with the least number of alleles) and a MinAMP (amplicon with the most number of alleles).
 
-![FIGURE_1.jpg](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_1.jpg)
+![FIGURE_1.png](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_1.png)
 
 0. Frequencies from alleles belonging to amplicons with the same number of alleles are averaged and treated as a single allele from this point onward.
 
-![FIGURE_2.jpg](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_2.jpg)
+![FIGURE_2.png](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_2.png)
 
 1. Calculate the maximum number of alleles from MinAMP that can be paired with a single allele of MajAMP:
 ```shell

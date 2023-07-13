@@ -9,7 +9,7 @@ The following R packages must be installed: `ggplot2`, `ggbeeswarm`, `dplyr`, `g
 ## Usage
 
 ```shell
-Rscript SCRIPT.R allele_data outfile
+Rscript FapR.R allele_data outfile
 ```
 
 ### Arguments

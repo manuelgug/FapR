@@ -31,7 +31,7 @@ Next, the script divides the data into monoclonal and polyclonal samples based o
 
 The script performs a brief exploratory data analysis on the polyclonal samples. It calculates and visualizes various statistics, such as the ratio of monoclonal to polyclonal samples, variance in allele frequency for each amplicon, the number of alleles for each amplicon, the distribution of the number of alleles, and allele frequencies for each amplicon.
 
-FIGURE
+![output_EDA.jpg](https://github.com/manuelgug/FapR/blob/main/images/EDA.jpg)
 
 ### Phasing
 
@@ -56,17 +56,15 @@ FIGURE
 ##### Samples that have the same number of alleles on all of their multiallelic loci
 Alleles are sorted by frequency and grouped accordingly.
 
-FIGURE
-
 ##### Samples with amplicons that have a different number of alleles
 
 Amplicons are sorted in descending order by the number of alleles. Phasing is performed on adjacent pairs of amplicons, where each adjacent pair consists of a MajAMP (amplicon with the least number of alleles) and a MinAMP (amplicon with the most number of alleles).
 
-FIGURE1
+![FIGURE_1.jpg](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_1.jpg)
 
 0. Frequencies from alleles belonging to amplicons with the same number of alleles are averaged and treated as a single allele from this point onward.
 
-FIGURE2
+![FIGURE_2.jpg](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_2.jpg)
 
 1. Calculate the maximum number of alleles from MinAMP that can be paired with a single allele of MajAMP:
 ```shell

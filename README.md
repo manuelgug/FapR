@@ -46,8 +46,6 @@ The script performs a brief exploratory data analysis on the polyclonal samples.
 
 ### Algorithm
 
-#### Workflow
-
 ##### Samples that have a single polyallelic amplicon
 No ambiguity exists in these samples. All of the monoallelic amplicons are paired with each of the alleles from the amplicon with the most alleles.
 

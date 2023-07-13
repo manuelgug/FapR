@@ -1,4 +1,4 @@
-# FAPR: Frequency-based Amplicon Phasing in R
+# FapR: Frequency-based Amplicon Phasing in R
 
 This script performs the phasing of `dfhr` and `dhpr` amplicons from polyclonal infections of *Plasmodium falciparum*, utilizing only their allele frequencies.
 

@@ -14,7 +14,7 @@ Rscript SCRIPT.R allele_data outfile
 
 ### Arguments
 
-- `allele_data_filtered`: Path to the input allele data file.
+- `allele_data`: Path to the input allele data file.
 - `outfile`: Prefix appended to the output files.
 
 ## Script Overview
@@ -36,7 +36,7 @@ The script performs a brief exploratory data analysis on the polyclonal samples.
 ### Phasing
 
 #### Assumptions
-1. All alleles in the input file are true alleles. (Filtering should be performed)
+1. All alleles in the input file are true alleles. Appropriate filtering is strongly advised.
 2. There are no copy number variants (CNV) on the amplicons.
 
 #### Conditions

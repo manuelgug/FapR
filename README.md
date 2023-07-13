@@ -131,7 +131,7 @@ Final haplotype 3 = 1B_2B_3B
 Final haplotype 4 = 1B_2C_3D
 ```
 
-![output_EDA.jpg](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_3.jpg)
+![FIGURE_3.png](https://github.com/manuelgug/FapR/blob/main/images/FIGURE_3.png)
 
 - The amplicon with the most alleles determines the expected number of haplotypes ✔
 - Each allele from the amplicon with the most alleles should be used only once to build the haplotypes ✔

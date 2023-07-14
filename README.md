@@ -36,7 +36,7 @@ The script performs a brief exploratory data analysis on the polyclonal samples.
 ### Phasing
 
 #### Assumptions
-1. All alleles in the input file are true alleles. Appropriate filtering is strongly advised.
+1. All alleles in the input file are true alleles. Appropriate filtering is strongly suggested.
 2. There are no copy number variants (CNV) on the amplicons.
 
 #### Conditions

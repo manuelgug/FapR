@@ -49,8 +49,6 @@ The script performs a brief exploratory data analysis on the polyclonal samples.
 ##### Samples that have a single polyallelic amplicon
 No ambiguity exists in these samples. All of the monoallelic amplicons are paired with each of the alleles from the amplicon with the most alleles.
 
-FIGURE
-
 ##### Samples that have the same number of alleles on all of their multiallelic loci
 Alleles are sorted by frequency and grouped accordingly.
 

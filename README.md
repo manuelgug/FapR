@@ -101,7 +101,7 @@ Partial haplotype 1 = 1A_2A
 4. Remove all options, whether individual or combinations, that already contain phased alleles and repeat step 3 for each remaining allele of MajAMP.
 
 ```shell
-abs(1A - [2B,  2C, 2B + 2C])
+abs(1B - [2B,  2C, 2B + 2C])
 
 error calculations:
 abs(0.275 - 0.22) = 0.055

@@ -1,6 +1,6 @@
 # FapR: Frequency-based amplicon phasing in R
 
-This script performs the phasing of `dfhr` and `dhpr` amplicons from polyclonal infections of *Plasmodium falciparum*, utilizing only their allele frequencies.
+This script performs the phasing of `dfhr` and `dhps` amplicons from polyclonal infections of *Plasmodium falciparum*, utilizing only their allele frequencies.
 
 ## Dependencies
 
@@ -23,7 +23,7 @@ The script can be divided into three main sections: data preparation, explorator
 
 ### Data Preparation
 
-The script first subsets the amplicons of interest (`dfhr` and `dhpr`) based on the specified amplicon names and updates their names accordingly. If you need to modify the amplicon names or add more amplicons, please modify these variables accordingly.
+The script first subsets the amplicons of interest (`dfhr` and `dhps`) based on the specified amplicon names and updates their names accordingly. If you need to modify the amplicon names or add more amplicons, please modify these variables accordingly.
 
 Next, the script divides the data into monoclonal and polyclonal samples based on the number of alleles. Monoclonal samples have only one allele for all specified amplicons, while polyclonal samples have multiple alleles for at least one amplicon.
 

@@ -20,7 +20,7 @@ resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.rea
 ###test reformatting with one sample !!!!!!
 ##########################################
 
-test<-resmarkers_table[resmarkers_table$SampleID =="N3D7_Dd2_k13_0_S162",] #select 1 sampleID
+test<-resmarkers_table[resmarkers_table$SampleID =="N3D7_Dd2_k13_25_S157",] #select 1 sampleID
 
 eCOI<- 2 ### THIS IS A PLACE HOLDER FOR ECOI, WHICH SHOULD BE AUTOMATICALLY SET WHEN SELECTING THE SAMPLE (MAYBE ROUNDED ALSO? SHOULD BE INTEGER!)
 
@@ -83,6 +83,7 @@ if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic sam
     comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_437 * comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59  * comb_freqs_matrix$dhfr_108
     
     # Calculate SD and CV
+    comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix, na.rm = TRUE)
     comb_freqs_matrix$SD <- apply(comb_freqs_matrix[, 1:5], 1, sd)
     comb_freqs_matrix$CV <- (comb_freqs_matrix$SD / comb_freqs_matrix$freq_mean)
     
@@ -120,18 +121,16 @@ if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic sam
     comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
   }
   
-  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_0_S162", MOST_LIKELY_HAPLOS, MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", MOST_LIKELY_HAPLOS, MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
   RESULTS
   
 }else{ 
   
   #FORMAT AND ADD MONOALLELIC SAMPLES HERE
   
-  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_0_S162", comb_alleles_matrix, 1)
+  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", comb_alleles_matrix, 1)
   RESULTS
 }
-
-#APPEND MONO AND MULTIALLELIC RESULTS HERE
 
 #DONE
 

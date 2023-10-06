@@ -4,6 +4,12 @@
 
 
 
+
+
+
+
+
+
 ################## IMPORT AND FORMAT DATA ################## 
 
 #4 amplicons, all biallelic
@@ -31,6 +37,60 @@ comb_alleles_matrix <- as.data.frame(comb_alleles)
 colnames(comb_alleles_matrix) <- c("dhps_437", "dhps_540", "dhfr_51_59", "dhfr_108")
 comb_freqs_matrix <- as.data.frame(comb_freqs)
 colnames(comb_freqs_matrix) <- c("dhps_437", "dhps_540", "dhfr_51_59", "dhfr_108")
+
+
+
+
+################## IMPORT AND FORMAT REAL DATA ################## 
+
+resmarkers_table <- read.csv("HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
+
+#subset relevant snps
+markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_437", "dhps_540")
+
+resmarkers_table <- resmarkers_table %>%
+  filter(grepl(paste(markers_to_phase, collapse = "|"), resmarker))
+
+resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
+
+
+###test reformatting with one sample !!!!!!
+
+test<-resmarkers_table[resmarkers_table$SampleID =="N1933388_5_S115",]
+
+new_df <- data.frame(matrix(ncol = length(test$resmarker), nrow=1))
+colnames(new_df) <- test$resmarker
+new_df[1,] <-test$AA
+new_df <- rbind(new_df, test$norm.reads.locus )
+
+unique_resmarkers <- unique(colnames(new_df))
+
+# Initialize a list to store the resulting dataframes
+resulting_dataframes <- list()
+
+# Loop through each unique resmarker
+for (resmarker in unique_resmarkers) {
+  
+  # Extract the columns with the same name
+  columns <- which(names(new_df) == resmarker)
+  
+  # Create a dataframe for this resmarker
+  df <- t(as.data.frame(new_df[, columns]))
+  df <- as.data.frame(df)
+  df$V2 <- as.numeric(df$V2)
+  
+  # Set the column names for the resulting dataframe
+  colnames(df) <- c(resmarker, "norm.reads.locus")
+  rownames(df) <- NULL
+  
+  # Add the resulting dataframe to the list
+  resulting_dataframes[[resmarker]] <- df
+}
+###################################
+
+
+
+
 
 
 ################## MAIN LOOP ################## 
@@ -65,7 +125,7 @@ while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || sd(MOST_LIKELY_HAPLOS_FREQS[nrow
     print(paste("One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
     
     # Plot CV vs. probs
-    plot(comb_freqs_matrix$CV, comb_freqs_matrix$probs)
+    #plot(comb_freqs_matrix$CV, comb_freqs_matrix$probs)
   }
   
   # Append next best haplo
@@ -83,19 +143,18 @@ while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || sd(MOST_LIKELY_HAPLOS_FREQS[nrow
     comb_alleles_matrix[, col_name] == row_to_match[, col_name]
   })
   
-  comb_freqs_matrix <- comb_freqs_matrix[, 1:4]
-  
   # Subtract min_allele_from_most_lilely_hap from the cells where mask is TRUE and ignore the specified column
+  comb_freqs_matrix <- comb_freqs_matrix[, 1:4]
   comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
 }
 
 #########################################################################################
 
+#MOST_LIKELY_HAPLOS
+#MOST_LIKELY_HAPLOS_FREQS
 
-MOST_LIKELY_HAPLOS
-MOST_LIKELY_HAPLOS_FREQS
-
-
+RESULT <- cbind(MOST_LIKELY_HAPLOS, MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+colnames(RESULT)[5] <- "HAPLO_FREQ"
 
 
 

@@ -71,7 +71,7 @@ colnames(comb_freqs_matrix) <- c("dhps_437", "dhps_540", "dhfr_51","dhfr_59", "d
 eCOI_counter <- 0
 MOST_LIKELY_HAPLOS <- data.frame()
 MOST_LIKELY_HAPLOS_FREQS <- data.frame()
-RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0))
+RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
 
 if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
   
@@ -121,14 +121,17 @@ if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic sam
     comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
   }
   
-  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", MOST_LIKELY_HAPLOS, MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+  #recalculate proportions of final haplos
+  MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+  
+  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
   RESULTS
   
 }else{ 
   
   #FORMAT AND ADD MONOALLELIC SAMPLES HERE
   
-  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", comb_alleles_matrix, 1)
+  RESULTS <- cbind(SampleID = "N3D7_Dd2_k13_25_S157", comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
   RESULTS
 }
 

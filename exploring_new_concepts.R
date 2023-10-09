@@ -1,19 +1,11 @@
-
-###ESTE MÉTODO ITERATIVO IGNORA COI. USANDO COI SERÍA UNA ESTRATEGIA DISTINTA, SUPONGO... PROBAR ASÍ CON TODAS LAS ITERACIONES POSIBLES PRIMERO?
-
-
-##TO DO LIST:
-# 1) incorporate eCOI from an input file (right now it's in placeholder mode)
-# 2) extend the loop to use all samples from resmarkers table 1 by 1 and TEST IT
-# 3) TEST!!!
-
 library(dplyr)
+
 
 ################## IMPORT AND FORMAT DATA ################## 
 
 resmarkers_table <- read.csv("HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
 
-#subset relevant snps
+#subset relevant markers
 markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_437", "dhps_540")
 
 resmarkers_table <- resmarkers_table %>%
@@ -108,11 +100,11 @@ for (sample in unique_samples){
       #do CV and probs agree with each other?
       if (lowest_CV == highest_prob) {
         most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-        print(paste(most_likely_hap, "is the most likely true haplotype.", collapse = " "))
+        print(paste(sample, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
       } else {
         most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
         most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
-        print(paste("One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
+        print(paste(sample,": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
       }
       
       # Append most likely haplo

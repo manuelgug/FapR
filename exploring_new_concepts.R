@@ -100,11 +100,11 @@ for (sample in unique_samples){
       #do CV and probs agree with each other?
       if (lowest_CV == highest_prob) {
         most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-        print(paste(sample, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
+        print(paste(sample, "#", eCOI_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
       } else {
         most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
         most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
-        print(paste(sample,": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
+        print(paste(sample, "#", eCOI_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
       }
       
       # Append most likely haplo

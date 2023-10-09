@@ -1,4 +1,6 @@
 library(dplyr)
+library(ggplot2)
+library(gridExtra)
 
 
 ################## IMPORT AND FORMAT DATA ################## 
@@ -78,7 +80,6 @@ for (sample in unique_samples){
   colnames(comb_freqs_matrix) <- c("dhps_437", "dhps_540", "dhfr_51","dhfr_59", "dhfr_108")
   
   # 4) phase
-  
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
     while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 ||  eCOI_counter != eCOI) {
@@ -131,14 +132,12 @@ for (sample in unique_samples){
     MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
     
     RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
-    #RESULTS
     
   }else{ 
     
     #FORMAT AND ADD MONOALLELIC SAMPLES HERE
-    
     RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
-    #RESULTS
+    
   }
   
   #DONE
@@ -146,9 +145,47 @@ for (sample in unique_samples){
   
 }
 
+write.csv(RESULTS_FINAL, "phased_haplos.csv", row.names =FALSE)
 
 
+################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
 
+
+#multi <- RESULTS_FINAL$HAPLO_FREQ_RECALC < 1
+#hist(RESULTS_FINAL[multi, c("HAPLO_FREQ")])
+#hist(RESULTS_FINAL[multi, c("HAPLO_FREQ_RECALC")])
+
+# formatting
+haplos<-paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+
+haplo_counts <- table(haplos)
+haplo_counts <- as.data.frame(haplo_counts)
+haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
+
+#barplot of counts
+p <-ggplot(haplo_counts, aes(x = haplos, y = Freq)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  labs(title = "Haplo Counts", x = "Haplo", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("counts.png", p, width = 12, height = 9)  # Adjust width and height as needed
+
+
+# Histograms of frequency of each haplo
+histogram_plots <- list()
+
+for (haplo in unique(haplos)) {
+  freq_vector <- RESULTS_FINAL$HAPLO_FREQ_RECALC[haplos == haplo]
+  
+  plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
+    geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="white") +
+    labs(title = haplo, x = "Frequency", y = "Count")
+  
+  histogram_plots[[haplo]] <- plot
+}
+
+grid_plot <- grid.arrange(grobs = histogram_plots, ncol = 4)  # Change ncol as needed
+ggsave("histograms_grid.png", grid_plot, width = 12, height = 9)  # Adjust width and height as needed
 
 
 

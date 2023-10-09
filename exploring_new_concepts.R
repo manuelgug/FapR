@@ -2,7 +2,6 @@ library(dplyr)
 library(ggplot2)
 library(gridExtra)
 
-
 ################## IMPORT AND FORMAT DATA ################## 
 
 resmarkers_table <- read.csv("HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
@@ -15,6 +14,8 @@ resmarkers_table <- resmarkers_table %>%
 
 resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
 
+moire_output <- read.csv("moire_output.csv") 
+
 
 ################## MAIN LOOP ################## 
 
@@ -22,7 +23,6 @@ unique_samples <- unique(resmarkers_table$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
 
 # INIT LOOP HERE!
-
 for (sample in unique_samples){
   
   eCOI_counter <- 0
@@ -34,8 +34,7 @@ for (sample in unique_samples){
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
   # 2) select sample's eCOI
-  #algo como: eCOI <- coi[coi$SampleID == sample,]
-  eCOI<- 2 ### THIS IS A PLACE HOLDER FOR ECOI, WHICH SHOULD BE AUTOMATICALLY SET WHEN SELECTING THE SAMPLE (MAYBE ROUNDED ALSO? SHOULD BE INTEGER!)
+  eCOI<- moire_output[moire_output$sample_id == sample,][2] #now set to POST_COI_LOWER because makes sense with visual inspection of controls. however, need more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
@@ -45,9 +44,7 @@ for (sample in unique_samples){
   
   unique_resmarkers <- unique(colnames(new_df))
   
-  # Initialize a list to store the resulting dataframes
   resulting_dataframes <- list()
-  
   # Loop through each unique resmarker (colname)
   for (resmarker in unique_resmarkers) {
     columns <- which(names(new_df) == resmarker)
@@ -137,19 +134,16 @@ for (sample in unique_samples){
     
     #FORMAT AND ADD MONOALLELIC SAMPLES HERE
     RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
-    
   }
   
   #DONE
   RESULTS_FINAL <- rbind(RESULTS, RESULTS_FINAL)
-  
 }
 
 write.csv(RESULTS_FINAL, "phased_haplos.csv", row.names =FALSE)
 
 
 ################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
-
 
 #multi <- RESULTS_FINAL$HAPLO_FREQ_RECALC < 1
 #hist(RESULTS_FINAL[multi, c("HAPLO_FREQ")])
@@ -165,10 +159,10 @@ haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[
 #barplot of counts
 p <-ggplot(haplo_counts, aes(x = haplos, y = Freq)) +
   geom_bar(stat = "identity", fill = "cadetblue3") +
-  labs(title = "Haplo Counts", x = "Haplo", y = "Count") +
+  labs(title = "Haplo Counts", x = "Haplo", y = "Count (Samples)") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave("counts.png", p, width = 12, height = 9)  # Adjust width and height as needed
+ggsave("haplotype_counts.png", p, width = 12, height = 9)  # Adjust width and height as needed
 
 
 # Histograms of frequency of each haplo
@@ -179,13 +173,13 @@ for (haplo in unique(haplos)) {
   
   plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
     geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="white") +
-    labs(title = haplo, x = "Frequency", y = "Count")
+    labs(title = haplo, x = "Frequency", y = "Count (Samples)")
   
   histogram_plots[[haplo]] <- plot
 }
 
 grid_plot <- grid.arrange(grobs = histogram_plots, ncol = 4)  # Change ncol as needed
-ggsave("histograms_grid.png", grid_plot, width = 12, height = 9)  # Adjust width and height as needed
+ggsave("haplos_histograms.png", grid_plot, width = 12, height = 9)  # Adjust width and height as needed
 
 
 

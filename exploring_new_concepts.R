@@ -25,7 +25,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N1933388_5_S115"
+  #sample <-"N3D7_Dd2_k13_5_S159"
   
   eCOI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -81,7 +81,7 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || eCOI_counter <= eCOI && sum(unique(comb_freqs_matrix)) > 1E-4) { ## PULIR CONDICIÓN DE SUM(UNIQUE)
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || eCOI_counter != eCOI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001) { ## PULIR CONDICIÓN
       
       eCOI_counter <- eCOI_counter + 1
       

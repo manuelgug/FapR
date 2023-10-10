@@ -20,15 +20,17 @@ moire_output <- read.csv("moire_output.csv")
 ################## MAIN LOOP ################## 
 
 unique_samples <- unique(resmarkers_table$SampleID)
-RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
+RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0))#, HAPLO_FREQ_RECALC = numeric(0))
 
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
+  #sample <-"N1933388_5_S115"
+  
   eCOI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
   MOST_LIKELY_HAPLOS_FREQS <- data.frame()
-  RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
+  RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0))#, HAPLO_FREQ_RECALC = numeric(0))
   
   # 1) select sample
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
@@ -79,12 +81,15 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 ||  eCOI_counter != eCOI) {
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || eCOI_counter <= eCOI && sum(unique(comb_freqs_matrix)) > 1E-4) { #### AQUÍ VOY! TENGO PROBLEMAS CON LA CONDICIÓN SI COI PERMITE MUCHAS ITERACIONES
       
       eCOI_counter <- eCOI_counter + 1
       
       # Calculate probs if all haplotypes were present
       comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_437 * comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59  * comb_freqs_matrix$dhfr_108
+      
+      #remove haplotypes with prob = 0
+      #comb_freqs_matrix <- subset(comb_freqs_matrix, probs != 0)
       
       # Calculate SD and CV
       comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix, na.rm = TRUE)
@@ -109,6 +114,7 @@ for (sample in unique_samples){
       MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
       temp <- comb_freqs_matrix[highest_prob, ]
       temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:5])
+      #temp$HAPLO_FREQ_RECALC <- NA
       MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
       
       # Select minimum allele freq from the most likely haplotype
@@ -123,17 +129,17 @@ for (sample in unique_samples){
       # Subtract min_allele_from_most_likely_hap from the cells where mask is TRUE and ignore the specified column
       comb_freqs_matrix <- comb_freqs_matrix[, 1:5]
       comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
-    }
-    
-    #recalculate proportions of final haplos
-    MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
-    
-    RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
+      
+      #recalculate proportions of final haplos
+      #MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+      
+      RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)#, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
+    }  
     
   }else{ 
     
     #FORMAT AND ADD MONOALLELIC SAMPLES HERE
-    RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
+    RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1)#, HAPLO_FREQ_RECALC = 1)
   }
   
   #DONE

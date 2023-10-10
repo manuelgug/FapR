@@ -178,8 +178,8 @@ for (haplo in unique(haplos)) {
   freq_vector <- RESULTS_FINAL$HAPLO_FREQ_RECALC[haplos == haplo]
   
   plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
-    geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="white") +
-    labs(title = haplo, x = "Frequency", y = "Count (Samples)")
+    geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="cadetblue3") +
+    labs(title = haplo, x = "Frequency", y = "Count (Samples)") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
   
   histogram_plots[[haplo]] <- plot
 }

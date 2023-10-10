@@ -14,7 +14,7 @@ resmarkers_table <- resmarkers_table %>%
 
 resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
 
-moire_output <- read.csv("moire_output.csv") 
+moire_output <- read.csv("moire_output_dhfr_dhps.csv") #dhfr-dhps specific moire run
 
 
 ################## MAIN LOOP ################## 
@@ -36,7 +36,7 @@ for (sample in unique_samples){
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
   # 2) select sample's eCOI
-  eCOI<- moire_output[moire_output$sample_id == sample,][2] #now set to POST_COI_LOWER because makes sense with visual inspection of controls. however, needs more testing
+  eCOI<- trunc(moire_output[moire_output$sample_id == sample,]["post_coi_mean"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))

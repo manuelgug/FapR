@@ -27,7 +27,7 @@ for (sample in unique_samples){
   
   #sample <-"N3D7_Dd2_k13_5_S159"
   
-  eCOI_counter <- 0
+  COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
   MOST_LIKELY_HAPLOS_FREQS <- data.frame()
   RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -35,8 +35,8 @@ for (sample in unique_samples){
   # 1) select sample
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
-  # 2) select sample's eCOI
-  eCOI<- trunc(moire_output[moire_output$sample_id == sample,]["post_coi_mean"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  # 2) select sample's COI
+  COI<- trunc(moire_output[moire_output$sample_id == sample,]["post_coi_mean"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
@@ -81,9 +81,9 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || eCOI_counter != eCOI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001) { ## PULIR CONDICIÓN
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || COI_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001) { ## PULIR CONDICIÓN?
       
-      eCOI_counter <- eCOI_counter + 1
+      COI_counter <- COI_counter + 1
       
       # Calculate probs if all haplotypes were present
       comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_437 * comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59  * comb_freqs_matrix$dhfr_108
@@ -103,11 +103,11 @@ for (sample in unique_samples){
       #do CV and probs agree with each other?
       if (lowest_CV == highest_prob) {
         most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-        print(paste(sample, "#", eCOI_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
+        print(paste(sample, "#", COI_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
       } else {
         most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
         most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
-        print(paste(sample, "#", eCOI_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
+        print(paste(sample, "#", COI_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
       }
       
       # Append most likely haplo
@@ -191,7 +191,7 @@ ggsave("haplos_histograms.png", grid_plot, width = 12, height = 9)  # Adjust wid
 
 
 
-## with eCOI, determine how many MAX haplos are expected
-## find the "BEST" complementary haplo(s) that add up to 100 as close as possible (without considering eCOI)
-## find the "BEST" complementary haplo(s) that add up to 100 as close as possible considering eCOI
+## with COI, determine how many MAX haplos are expected
+## find the "BEST" complementary haplo(s) that add up to 100 as close as possible (without considering COI)
+## find the "BEST" complementary haplo(s) that add up to 100 as close as possible considering COI
 ## same? PERFECT; not the same? WAT DO?

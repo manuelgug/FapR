@@ -161,14 +161,24 @@ haplos<-paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr
 haplo_counts <- table(haplos)
 haplo_counts <- as.data.frame(haplo_counts)
 haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
+haplo_counts$proportion <- haplo_counts$Freq/sum(haplo_counts$Freq)
 
 #barplot of counts
-p <-ggplot(haplo_counts, aes(x = haplos, y = Freq)) +
-  geom_bar(stat = "identity", fill = "cadetblue3") +
-  labs(title = "Haplo Counts", x = "Haplo", y = "Count (Samples)") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Haplotype Counts", x = NULL, y = "Count") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = FALSE) 
 
-ggsave("haplotype_counts.png", p, width = 12, height = 9)  # Adjust width and height as needed
+# Pie chart of proportions of haplos
+q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Proportions of Haplotypes", x = NULL) + 
+  scale_x_discrete(labels = NULL) 
+
+grid_plot <- grid.arrange(p, q, ncol = 2)
+ggsave("haplo_counts_proportions.png", grid_plot, width = 16, height = 9) 
 
 
 # Histograms of frequency of each haplo
@@ -179,14 +189,13 @@ for (haplo in unique(haplos)) {
   
   plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
     geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="cadetblue3") +
-    labs(title = haplo, x = "Frequency", y = "Count (Samples)") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+    labs(title = haplo, x = "Frequency", y = "Count") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
   
   histogram_plots[[haplo]] <- plot
 }
 
 grid_plot <- grid.arrange(grobs = histogram_plots, ncol = 4)  # Change ncol as needed
 ggsave("haplos_histograms.png", grid_plot, width = 12, height = 9)  # Adjust width and height as needed
-
 
 
 

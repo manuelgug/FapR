@@ -15,8 +15,6 @@ numeric_values <- as.numeric(str_extract(dd2$SampleID, "(?<=k13_)[0-9]+(?=_S)"))
 index <- order(numeric_values)
 sorted_dd2 <- dd2[index, ]
 
-sorted_dd2
-
 
 #plot
 library(ggplot2)
@@ -34,10 +32,11 @@ a<-ggplot(sorted_dd2, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)
         legend.position = "top") +
   guides(fill = guide_legend(title = "Haplotype"))
 
-ggsave("haplo_counts_proportions_DD2.png", a, width = 12, height = 9) 
+ggsave("haplo_profiles_DD2.png", a, width = 12, height = 9) 
 
 
 #conclusions so far:
 # 1) dfhr108 is less sensitive, creating "middle" haplos that doesn't exist. removing dhfr108 leaves the gradient as expected.
 # 2) thus, a filtering step may be needed given this limits of detection if all resmarkers should be included in order to return true haplos. 
 # 3) dhfr108 may be taken into account when found in high freq tho (between 25 to 60% according to stacked barplots)
+# 4) if dhfr108 is monoallelic, all good with the rest.

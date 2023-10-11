@@ -39,4 +39,5 @@ ggsave("haplo_profiles_DD2.png", a, width = 12, height = 9)
 # 1) dfhr108 is less sensitive, creating "middle" haplos that doesn't exist. removing dhfr108 leaves the gradient as expected.
 # 2) thus, a filtering step may be needed given this limits of detection if all resmarkers should be included in order to return true haplos. 
 # 3) dhfr108 may be taken into account when found in high freq tho (between 25 to 60% according to stacked barplots)
-# 4) if dhfr108 is monoallelic, all good with the rest.
+# 4) if dhfr108 is monoallelic (TENDS TO BE THAT WAY APPARENTLY! [haplo_profile_multiallelic.png]), all good with the rest.
+# 5) rest of markers' limit of detection seem to be around 1-2%

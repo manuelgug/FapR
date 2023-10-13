@@ -149,9 +149,10 @@ for (sample in unique_samples){
 
 ################# LIMIT OF DETETION FLAGGING OF HAPLOS ##############
 
-LOD_dhfr_51 <- 0.0427 # according to DD2 gradient, it is between 0.0373 and 0.0471, using the mean
-LOD_dhfr_59 <- 0.0427 # according to DD2 gradient, it is between 0.0373 and 0.0471, using the mean
-LOD_dhfr_108 <- 0.32 # according to DD2 gradient, it is between 0.3 and 0.34, using the mean
+#thresholds may change. current ones work perfectly for the DD2 gradient, but more sequencing may be needed. ALSO, no dhps gradients atm
+LOD_dhfr_51 <- 0.0372 # according to DD2 gradient, it is between 0.0373 and 0.0471, using lowest minus a litle
+LOD_dhfr_59 <- 0.0372 # according to DD2 gradient, it is between 0.0373 and 0.0471, using lowest minus a litle
+LOD_dhfr_108 <- 0.298 # according to DD2 gradient, it is between 0.299 and 0.34, using lowest minus a litle
 
 #for each sample, if loci is multiallelic, flag haplos freq below LOD for each loci as "dubious" for each allele.
 flag_haplotypes <- function(df, locus, lod_threshold) {

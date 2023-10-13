@@ -25,7 +25,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N3D7_Dd2_k13_5_S159"
+  #sample <-"N3D7_Dd2_k13_75_S153"
   
   COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -146,7 +146,27 @@ for (sample in unique_samples){
   RESULTS_FINAL <- rbind(RESULTS, RESULTS_FINAL)
 }
 
-write.csv(RESULTS_FINAL, "phased_haplos.csv", row.names =FALSE)
+
+################# LIMIT OF DETETION FLAGGING OF HAPLOS ##############
+
+LOD_dhfr_51 <- 0.0427 # according to DD2 gradient, it is between 0.0373 and 0.0471, using the mean
+LOD_dhfr_59 <- 0.0427 # according to DD2 gradient, it is between 0.0373 and 0.0471, using the mean
+LOD_dhfr_108 <- 0.32 # according to DD2 gradient, it is between 0.3 and 0.34, using the mean
+
+#for each sample, if loci is multiallelic, flag haplos freq below LOD for each loci as "dubious" for each allele.
+flag_haplotypes <- function(df, locus, lod_threshold) {
+  # Create a new column with "dubious" for haplotypes with HAPLO_FREQ_RECALC < LOD threshold, "correct" otherwise
+  df[paste0("flag_", locus)] <- ifelse(df$HAPLO_FREQ_RECALC < lod_threshold, "dubious", "correct")
+  return(df)
+}
+
+RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
+  group_by(SampleID) %>%
+  do(flag_haplotypes(., "dhfr_51", LOD_dhfr_51)) %>%
+  do(flag_haplotypes(., "dhfr_59", LOD_dhfr_59)) %>%
+  do(flag_haplotypes(., "dhfr_108", LOD_dhfr_108))
+
+write.csv(RESULTS_FINAL_FLAGGED, "phased_haplos.csv", row.names =FALSE)
 
 
 ################## CHECKS, VISUALIZATIONS, VALIDATION ################## 

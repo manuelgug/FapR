@@ -169,68 +169,73 @@ RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
 
 write.csv(RESULTS_FINAL_FLAGGED, "phased_haplos.csv", row.names =FALSE)
 
+#subset the dataframe to remove the dubious rows
+dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0
+RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
+
+write.csv(RESULTS_FINAL_FLAGGED_correct_only, "phased_haplos_correct_only.csv", row.names =FALSE)
 
 ################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
 
-#multi <- RESULTS_FINAL$HAPLO_FREQ_RECALC < 1
-#hist(RESULTS_FINAL[multi, c("HAPLO_FREQ")])
-#hist(RESULTS_FINAL[multi, c("HAPLO_FREQ_RECALC")])
-
-# formatting
-haplos<-paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
-
-haplo_counts <- table(haplos)
-haplo_counts <- as.data.frame(haplo_counts)
-haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
-haplo_counts$proportion <- haplo_counts$Freq/sum(haplo_counts$Freq)
-
-#barplot of counts
-p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Haplotype Counts", x = NULL, y = "Count") + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  guides(fill = FALSE) 
-
-# Pie chart of proportions of haplos
-q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar(theta = "y") +
-  labs(title = "Proportion of Haplotypes", x = NULL) + 
-  scale_x_discrete(labels = NULL) 
-
-grid_plot <- grid.arrange(p, q, ncol = 2)
-ggsave("haplo_counts_proportions.png", grid_plot, width = 16, height = 9) 
-
-
-# Histograms of frequency of each haplo
-histogram_plots <- list()
-
-for (haplo in unique(haplos)) {
-  freq_vector <- RESULTS_FINAL$HAPLO_FREQ_RECALC[haplos == haplo]
+generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, profile_plot) {
+  # Formatting
+  haplos <- paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+  haplo_counts <- table(haplos)
+  haplo_counts <- as.data.frame(haplo_counts)
+  haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
+  haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
   
-  plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
-    geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color ="cadetblue3") +
-    labs(title = haplo, x = "Frequency", y = "Count") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+  # Barplot of counts
+  p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Haplotype Counts", x = NULL, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    guides(fill = FALSE)
   
-  histogram_plots[[haplo]] <- plot
+  # Pie chart of proportions of haplos
+  q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar(theta = "y") +
+    labs(title = "Proportion of Haplotypes", x = NULL) +
+    scale_x_discrete(labels = NULL)
+  
+  grid_plot1 <- grid.arrange(p, q, ncol = 2)
+  
+  # Histograms of frequency of each haplo
+  histogram_plots <- list()
+  
+  for (haplo in unique(haplos)) {
+    freq_vector <- RESULTS_FINAL$HAPLO_FREQ_RECALC[haplos == haplo]
+    
+    plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
+      geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color = "cadetblue3") +
+      labs(title = haplo, x = "Frequency", y = "Count") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+    
+    histogram_plots[[haplo]] <- plot
+  }
+  
+  grid_plot2 <- grid.arrange(grobs = histogram_plots, ncol = 4)
+  
+  # Stacked barplot per sample (only multiallelic)
+  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+  RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
+  
+  a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Haplotype Frequencies", x = "SampleID", y = "Haplo Frequency") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1) , legend.position = "top") +
+    guides(fill = guide_legend(title = "Haplotype"))
+  
+  grid_plot3 <- a
+  
+  # Save plots to files
+  ggsave(props_plot, grid_plot1, width = 16, height = 9)
+  ggsave(hist_plot, grid_plot2, width = 14, height = 10)
+  ggsave(profile_plot, grid_plot3, width = 12, height = 9)
 }
 
-grid_plot <- grid.arrange(grobs = histogram_plots, ncol = 4)
-ggsave("haplos_histograms.png", grid_plot, width = 14, height = 10)  
+# plot all haplotypes
+generate_haplo_summary_plots(RESULTS_FINAL, "haplo_counts_proportions.png", "haplos_histograms.png", "haplo_profile_multiallelic.png")
 
-
-#stacked barplot per sample (only multiallellic)
-RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
-
-RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
-
-a<-ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
-  geom_bar(stat = "identity")+
-  labs(title = "Haplotype Frequencies",
-       x = "SampleID",
-       y = "Haplo Frequency") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top") +
-  guides(fill = guide_legend(title = "Haplotype"))
-
-ggsave("haplo_profile_multiallelic.png", a, width = 12, height = 9) 
+# plot only correct haplotypes
+generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, "haplo_counts_proportions_correct_only.png", "haplos_histograms_correct_only.png", "haplo_profile_multiallelic_correct_only.png")

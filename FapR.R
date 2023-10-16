@@ -1,437 +1,241 @@
-library(ggplot2)
-library(ggbeeswarm)
 library(dplyr)
+library(ggplot2)
 library(gridExtra)
-library(purrr)
+
+################## IMPORT AND FORMAT DATA ################## 
+
+resmarkers_table <- read.csv("HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
+
+#subset relevant markers
+markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_437", "dhps_540")
+
+resmarkers_table <- resmarkers_table %>%
+  filter(grepl(paste(markers_to_phase, collapse = "|"), resmarker))
+
+resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
+
+moire_output <- read.csv("moire_output_dhfr_dhps.csv") #dhfr-dhps specific moire run
 
 
-args = commandArgs(trailingOnly=T)
-allele_data_filtered=args[1]
-outfile=args[2]
+################## MAIN LOOP ################## 
 
-############################### DATA PREPARATION ###########################################
+unique_samples <- unique(resmarkers_table$SampleID)
+RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
 
-filtered_allele.data<-read.csv(allele_data_filtered, sep ="\t")
-#filtered_allele.data<-read.csv("allele_data_filtered_TESS2_run1.txt", sep ="\t") # has the DD2 mixes
-
-#subset amplicons of interest
-amps_names <- c("Pf3D7_04_v3-748105-748359-1B", "Pf3D7_04_v3-748374-748611-1B") #dhfr
-amps_names <- c(amps_names, "Pf3D7_08_v3-549583-549807-1B", "Pf3D7_08_v3-549960-550215-1B") #dhps
-
-amplicons_of_interest <- filtered_allele.data[filtered_allele.data$locus %in% amps_names, ]
-
-#change names
-new_names <- c(
-  "Pf3D7_04_v3-748105-748359-1B" = "dhfr16_dhfr51_dhfr59",
-  "Pf3D7_04_v3-748374-748611-1B" = "dhfr108_dhfr164",
-  "Pf3D7_08_v3-549583-549807-1B" = "dhps436_dhps437_dhps431",
-  "Pf3D7_08_v3-549960-550215-1B" = "dhps540_dhps581"
-)
-
-for (i in seq_along(new_names)) {
-  pattern <- paste0("^", names(new_names)[i])
-  amplicons_of_interest$locus <- sub(pattern, new_names[i], amplicons_of_interest$locus)
-  amplicons_of_interest$allele <- sub(pattern, new_names[i], amplicons_of_interest$allele)
+# INIT LOOP HERE!
+for (sample in unique_samples){
+  
+  #sample <-"N3D7_Dd2_k13_75_S153"
+  
+  COI_counter <- 0
+  MOST_LIKELY_HAPLOS <- data.frame()
+  MOST_LIKELY_HAPLOS_FREQS <- data.frame()
+  RESULTS <- data.frame(SampleID = character(0), dhps_437 = character(0), dhps_540 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
+  
+  # 1) select sample
+  sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
+  
+  # 2) select sample's COI
+  COI<- trunc(moire_output[moire_output$sample_id == sample,]["post_coi_mean"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  
+  # 3) format data
+  new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
+  colnames(new_df) <- sID$resmarker
+  new_df[1,] <-sID$AA
+  new_df <- rbind(new_df, sID$norm.reads.locus )
+  
+  unique_resmarkers <- unique(colnames(new_df))
+  
+  resulting_dataframes <- list()
+  # Loop through each unique resmarker (colname)
+  for (resmarker in unique_resmarkers) {
+    columns <- which(names(new_df) == resmarker)
+    df <- t(as.data.frame(new_df[, columns]))
+    df <- as.data.frame(df)
+    df$V2 <- as.numeric(df$V2)
+    colnames(df) <- c(resmarker, "norm.reads.locus")
+    rownames(df) <- NULL
+    resulting_dataframes[[resmarker]] <- df
+  }
+  
+  alleles<-list(resulting_dataframes$dhps_437$dhps_437, 
+                resulting_dataframes$dhps_540$dhps_540, 
+                resulting_dataframes$dhfr_51$dhfr_51,
+                resulting_dataframes$dhfr_59$dhfr_59,
+                resulting_dataframes$dhfr_108$dhfr_108) #order is important
+  
+  freqs<-list(resulting_dataframes$dhps_437$norm.reads.locus, 
+              resulting_dataframes$dhps_540$norm.reads.locus, 
+              resulting_dataframes$dhfr_51$norm.reads.locus,
+              resulting_dataframes$dhfr_59$norm.reads.locus,
+              resulting_dataframes$dhfr_108$norm.reads.locus) #order is important
+  
+  comb_alleles <- expand.grid(alleles)
+  comb_freqs <- expand.grid(freqs)
+  
+  comb_alleles_matrix <- as.data.frame(comb_alleles)
+  colnames(comb_alleles_matrix) <- c("dhps_437", "dhps_540", "dhfr_51","dhfr_59", "dhfr_108")
+  comb_freqs_matrix <- as.data.frame(comb_freqs)
+  colnames(comb_freqs_matrix) <- c("dhps_437", "dhps_540", "dhfr_51","dhfr_59", "dhfr_108")
+  
+  # 4) phase
+  if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
+    
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || COI_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001) { ## PULIR CONDICIÓN?
+      
+      COI_counter <- COI_counter + 1
+      
+      # Calculate probs if all haplotypes were present
+      comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_437 * comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59  * comb_freqs_matrix$dhfr_108
+      
+      #remove haplotypes with prob = 0
+      #comb_freqs_matrix <- subset(comb_freqs_matrix, probs != 0)
+      
+      # Calculate SD and CV
+      comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix, na.rm = TRUE)
+      comb_freqs_matrix$SD <- apply(comb_freqs_matrix[, 1:5], 1, sd)
+      comb_freqs_matrix$CV <- (comb_freqs_matrix$SD / comb_freqs_matrix$freq_mean)
+      
+      ## Select the "BEST" haplo: highest prob and lowest CV
+      lowest_CV <- which.min(comb_freqs_matrix$CV)
+      highest_prob <- as.numeric(which.max(comb_freqs_matrix$probs))
+      
+      #do CV and probs agree with each other?
+      if (lowest_CV == highest_prob) {
+        most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
+        print(paste(sample, "#", COI_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
+      } else {
+        most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
+        most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
+        print(paste(sample, "#", COI_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
+      }
+      
+      # Append most likely haplo
+      MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
+      temp <- comb_freqs_matrix[highest_prob, ]
+      temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:5])
+      temp$HAPLO_FREQ_RECALC <- NA
+      MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
+      
+      # Select minimum allele freq from the most likely haplotype
+      min_allele_from_most_lilely_hap <- min(comb_freqs_matrix[highest_prob, 1:5])
+      
+      # Boolean mask to detect alleles that are present on the most likely haplotype
+      row_to_match <- as.matrix(comb_alleles_matrix[highest_prob, ])
+      mask <- sapply(colnames(comb_alleles_matrix), function(col_name) {
+        comb_alleles_matrix[, col_name] == row_to_match[, col_name]
+      })
+      
+      # Subtract min_allele_from_most_likely_hap from the cells where mask is TRUE and ignore the specified column
+      comb_freqs_matrix <- comb_freqs_matrix[, 1:5]
+      comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
+      
+      #recalculate proportions of final haplos
+      MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+      
+      RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
+    }  
+    
+  }else{ 
+    
+    #FORMAT AND ADD MONOALLELIC SAMPLES HERE
+    RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
+  }
+  
+  #DONE
+  RESULTS_FINAL <- rbind(RESULTS, RESULTS_FINAL)
 }
 
-# Subset monoclonal samples (for the 4 given amplicons)
-monoclonal_samples <- amplicons_of_interest %>%
-  group_by(sampleID) %>%
-  filter(all(n.alleles == 1))
 
-# Subset polyclonal samples (for the 4 given amplicons)
-polyclonal_samples <- anti_join(amplicons_of_interest, monoclonal_samples, by = c("locus", "sampleID"))
-
-
-############################# EXPLORATORY DATA ANALYSIS ###########################################
-
-ratio <- data.frame(
-  SampleType = c("Monoclonal", "Polyclonal"),
-  Count = c(length(unique(monoclonal_samples$sampleID)), length(unique(polyclonal_samples$sampleID)))
-)
-
-ratio$Percentage <- round(ratio$Count / sum(ratio$Count) * 100, 1)
-
-pie_chart <- ggplot(ratio, aes(x = "", y = Count, fill = SampleType)) +
-  geom_bar(width = 1, stat = "identity") +
-  coord_polar(theta = "y") +
-  labs(fill = "Sample Type", x = NULL, y = NULL, title = "Monoclonal to Polyclonal Ratio") +
-  theme_void() +
-  geom_text(aes(label = paste0(Count, " (", Percentage, "%)")), position = position_stack(vjust = 0.5))
-
-poly_var<-polyclonal_samples %>%
-  group_by(locus) %>%
-  summarize(variance = var(norm.reads.locus))
-
-variance<-ggplot(poly_var, aes(x = locus, y = variance, fill=locus)) +
-  geom_bar(stat = "identity") +
-  xlab("Amplicon") +
-  ylab("Variance") +
-  ggtitle("Variance in allele frequency for each amplicon") +
-  theme_minimal()+
-  guides(fill = "none")
-
-p1<-ggplot(polyclonal_samples, aes(x = locus, y = n.alleles)) +
-  ggbeeswarm::geom_quasirandom(aes(color = locus), dodge.width = 0.5, size = 2, show.legend = FALSE) +
-  xlab("Amplicon") +
-  ylab("Number of Alleles")+ 
-  labs(title = "Number of alleles for each amplicon")
-
-p2<-ggplot(polyclonal_samples, aes(x = n.alleles, fill = locus)) +
-  geom_density(alpha = 0.5) +
-  xlab("Number of Alleles") +
-  ylab("Density") +
-  scale_fill_discrete(name = "Amplicon")+ 
-  labs(title = "Distribution of number of alleles")
-
-p3 <- ggplot(polyclonal_samples, aes(x = locus, y = norm.reads.locus)) +
-  ggbeeswarm::geom_quasirandom(aes(color = locus), dodge.width = 0.5, size = polyclonal_samples$n.alleles, show.legend = FALSE) +
-  xlab("Amplicon") +
-  ylab("Allele Frequency") +
-  labs(title = "Allele frequencies for each amplicon") +
-  scale_size(name = "Number of Alleles")
-
-p4<-ggplot(polyclonal_samples, aes(x = norm.reads.locus, fill = locus)) +
-  geom_density(alpha = 0.5) +
-  xlab("Allele Frequency") +
-  ylab("Density") +
-  scale_fill_discrete(name = "Amplicon")+ 
-  labs(title = "Distribution of allele frequencies")
-
-grid <- gridExtra::arrangeGrob(pie_chart, variance, p1, p3, p2, p4, nrow = 3, ncol = 2)
-
-ggsave(paste0(outfile,"_EDA.pdf"), grid, width = 18, height = 14, dpi = 300, device="pdf") 
-
-
-
-
-###################################### PHASING ###############################################
-
-
-#extract already phased samples (meaning, all amplicons minus 1 only have 1 allele [#if a sample has a value of 1 in all minus 1 unique locus, it's already phased, just split it by the number of alleles the remaining locus has.])
-autophased_samples <- polyclonal_samples %>%
-  group_by(sampleID) %>%
-  filter(sum(n.alleles == 1) == length(unique(locus)) - 1) %>% #for these 4 loci, it means a sample has at least 3 monoallelic loci and 1 polyallelic
-  ungroup()
-
-#leave unphased samples
-polyclonal_samples <- polyclonal_samples %>%
-  anti_join(autophased_samples, by = c("sampleID", "locus"))
-
-####FINAL FORMAT TO monoclonal_samples and autophased_samples
-monoclonal_samples$haplotypes<-"HAPLOTYPE1" 
-
-autophased_samples <- autophased_samples %>%
-  arrange(sampleID, locus, n.alleles, desc(norm.reads.locus)) %>%
-  group_by(locus) %>%
-  arrange(desc(n.alleles))
-
-autophased_samples <- autophased_samples %>% 
-  group_by(sampleID) %>%
-  mutate(haplotypes = ifelse(n.alleles == 1, paste0("HAPLOTYPE", 1:max(n.alleles), collapse = "_"), paste0("HAPLOTYPE", 1:max(n.alleles[n.alleles > 1])))) %>%
-  arrange(sampleID)
-
-PARTIAL_OUTPUT_1 <- rbind(monoclonal_samples, autophased_samples)
-
-#################################################################################
-
-#pick sample 
-#sample_names[1] de ../SMC_retest_new_snps_new_output/mad4hatter-main/SMC2_NextSeq04_131222_results/allele_data.txt para probar con 1, 2, 3 y 4 alelos: GOOD
-#sample_names[2] de ../SMC_retest_new_snps_new_output/mad4hatter-main/SMC2_NextSeq04_131222_results/allele_data.txt para probar con 1, 1, 2, 5 alelos GOOD
-#sample_names[7] de ../SMC_retest_new_snps_new_output/mad4hatter-main/SMC2_NextSeq04_131222_results/allele_data.txt para probar con 1, 1, 3, 3 alelos: GOOD
-#sample_names[9] de ../SMC_retest_new_snps_new_output/mad4hatter-main/SMC2_NextSeq04_131222_results/allele_data.txt para probar con 1, 2, 2, 3 alelos: GOOD
-
-sample_names<-unique(polyclonal_samples$sampleID) #out of loop
-PARTIAL_OUTPUT_2 <- data.frame()
-
-for (sample in sample_names){
-
-  muestra<-polyclonal_samples[grep(sample, polyclonal_samples$sampleID), ] 
-
-  #sort
-  sorted_polyclonal <- muestra %>%
-    arrange(sampleID, locus, n.alleles, desc(norm.reads.locus)) %>%
-    group_by(locus) %>%
-    arrange(n.alleles)
-
-  #split mono and polyallelic loci
-  monoallelic_loci <- sorted_polyclonal %>%
-    filter(n.alleles == 1)
-
-  sorted_polyclonal <- sorted_polyclonal %>%
-    filter(n.alleles > 1)
-
-  #set max haplos expected
-  n_haplos <- max(unique(sorted_polyclonal$n.alleles))
-
-  #loci have the same number of alleles are phased just by sorting. give FINAL FORMAT as the action in the if statement and proceed with next sample
-  if (length(unique(sorted_polyclonal$n.alleles)) == 1){ ##### ALL MULTIALLELIC LOCI HAVE THE SAME # OF ALLELES
-
-    #GIVE FINAL FORMAT
-    sorted_polyclonal<-rbind(monoallelic_loci, sorted_polyclonal)
-
-    sorted_polyclonal <- sorted_polyclonal %>%
-      arrange(sampleID, locus, n.alleles, desc(norm.reads.locus)) %>%
-      group_by(locus) %>%
-      arrange(desc(n.alleles))
-
-    sorted_polyclonal <- sorted_polyclonal %>% 
-      group_by(sampleID) %>%
-      mutate(haplotypes = ifelse(n.alleles == 1, paste0("HAPLOTYPE", 1:max(n.alleles), collapse = "_"), paste0("HAPLOTYPE", 1:max(n.alleles[n.alleles > 1])))) %>%
-      arrange(sampleID)
-
-    PHASED_SAMPLE <- sorted_polyclonal
-
-  } else { ###### AT LEAST 1 PAIR OF ALLELES HAS THE SAME # OF ALLELES (PERFORM ALLELE AVERAGING)
-
-    ##loop to average frequencies of amplicons with the same number of alleles 
-    unique_alleles <- unique(sorted_polyclonal$n.alleles)
-    averaged_frequencies <- data.frame()
-
-    for (allele in unique_alleles) {
-      subset_rows <- sorted_polyclonal %>%
-        filter(n.alleles == {{allele}})
-
-      seq_unique_alleles <- seq(1, allele)
-
-      if (length(unique(subset_rows$locus)) == 1) {
-
-        break  # End the loop if there are no frequencies to average because number of alleles is not repeated across amplicons
-
-      } else {
-
-        for (num in seq_unique_alleles) {
-          rows <- subset_rows %>%
-            group_by(locus) %>%
-            slice({{num}})
-
-          #calculate average frequency and reads for each partial haplotype
-          averaged_values <- mean(rows$norm.reads.locus)
-          average_reads<-mean(rows$reads)
-
-          #give proper format
-          sampleID<-rows$sampleID[1]
-          concatenated_locus <- paste(rows$locus, collapse = "@")
-          concatenated_asv <- paste(rows$asv, collapse = "@")
-          concatenated_alleles<- paste(rows$allele, collapse = "@")
-
-          averaged_values <- cbind(sampleID=sampleID, locus=concatenated_locus, asv = concatenated_asv, reads = average_reads, allele=concatenated_alleles, norm.reads.allele=1, norm.reads.locus=averaged_values, n.alleles = allele)
-          averaged_frequencies <- rbind(averaged_frequencies, averaged_values) 
-
-        }
-        #replace alleles with averaged partial haplotypes when needed
-        sorted_polyclonal <- sorted_polyclonal[!(sorted_polyclonal$n.alleles %in% unique(averaged_frequencies$n.alleles)), ]
-        sorted_polyclonal$norm.reads.allele <- 1
-        sorted_polyclonal <- rbind(averaged_frequencies, as.data.frame(sorted_polyclonal))
-      }
-    }
-
-  #REMAINING SAMPLES HAVE DIFFERENT # OF ALLELES ON EACH LOCI
-
-  # Get adjacent pairs of loci and/or partial haplotypes
-  adjacent_pairs <- lapply(1:(length(unique_alleles)-1), function(i) c(unique(sorted_polyclonal$locus)[i], unique(sorted_polyclonal$locus)[i+1]))
-  adjacent_pairs <- discard(adjacent_pairs, ~any(is.na(.)))
-  freqs <- data.frame(alleles = character(), sum_freqs = numeric())
-  errors_list <- list() 
-
-  # calcualte all sums of frequencies from the locus of the pair that has the most alleles
-  for (pair in adjacent_pairs) {
-    #cat("Locus Pair:", pair[1], "-", pair[2], "\n")
-
-    combo_limit = abs(as.numeric(unique(sorted_polyclonal[sorted_polyclonal$locus==pair[1],][length(colnames(sorted_polyclonal))]))
-                      -as.numeric(unique(sorted_polyclonal[sorted_polyclonal$locus==pair[2],][length(colnames(sorted_polyclonal))]))) +1 # combo_limit = max number of alleles that can be summed
-
-    subset_rows_pair1 <- sorted_polyclonal[sorted_polyclonal$locus == pair[1], ]
-    subset_rows_pair2 <- sorted_polyclonal[sorted_polyclonal$locus == pair[2], ]
-
-    for (i in 1:combo_limit) {
-      sums <- combn(as.numeric(subset_rows_pair2$norm.reads.locus), i, FUN = sum)
-
-      # Get corresponding alleles
-      allele_strings <- combn(subset_rows_pair2$allele, i, FUN = function(x) paste(x, collapse = "@"))
-
-      # Create data frame with alleles and sum_freqs
-      iteration_results <- data.frame(allele = allele_strings, sum_freqs = sums)
-      freqs <- rbind(freqs, iteration_results)
-    }
-
-    #calculate errors
-    errors<-abs(outer(as.numeric(subset_rows_pair1$norm.reads.locus), freqs$sum_freqs, "-"))
-    colnames(errors)<- freqs$allele #pair[2] #highest amount of alleles
-    rownames(errors)<-subset_rows_pair1$allele #pair[1], lowest amount of alleles
-
-    # Prevent alleles from the most polyallellic amplicon from repeating on multiple haplotypes 
-    for (i in 1:nrow(errors)) {
-
-      # Fill columns matching row names with NAs: alleels from the same locus shouldn't be compared with each other
-      matching_cols <- grepl(paste0("^", rownames(errors)[i], "(?:[^[:alnum:]]|$)"), colnames(errors))
-      errors[i, matching_cols] <- NA
-      errors[, apply(errors, 2, function(x) any(is.na(x)))] <- NA
-
-      lowest_value <- min(errors[i, ], na.rm = TRUE)  # Exclude NA as the lowest value
-      lowest_col <- colnames(errors)[which(errors[i, ] == lowest_value)][1] #### added [1] because happened to me that there was an instance of 2 columns with the exact same error. in the case i checked it got resolved by selecting the first. don't know how common this happens: muestra __N2011605_7_S83__ de ./SMC_retest_new_snps_new_output/mad4hatter-main/SMC2_NextSeq04_131222_results/allele_data.txt
-
-      # Split lowest_col by '@' to handle multiple sub-strings
-      lowest_cols <- unlist(strsplit(lowest_col, "@"))
-
-      for (sub_col in lowest_cols) {
-        pattern <- paste0("^", sub_col, "(?:[^[:alnum:]]|$)")
-
-        # Grep the pattern in the rest of the columns and fill matched columns with NAs
-        for (col in colnames(errors)[-which(colnames(errors) %in% lowest_col)]) {
-          if (grepl(pattern, col)) {
-            errors[, col] <- NA
-            errors[, apply(errors, 2, function(x) any(is.na(x)))] <- NA
-          }
-        }
-      }
-    }
-    errors_list[[paste(pair[1], "-", pair[2], sep = "")]] <- errors
-  }
-
-
-  ###linking partial haplotypes when needed (use sample that has multiple alleles in multiple loci to test)
-
-  #extract partial haplotypes (those with the least error)
-  partial_haplos <- list()
-
-  for (i in 1:length(errors_list)) {
-    df <- errors_list[[i]]
-    haplos <- c()
-
-    for (j in 1:nrow(df)) {
-      rowname <- rownames(df)[j]
-      lowest_value <- min(df[j, ], na.rm = TRUE)
-      lowest_col <- colnames(df)[df[j, ] == lowest_value]
-      lowest_col <- lowest_col[!is.na(lowest_col)]
-
-      # Exclude the lowest column from further iterations
-      df[, lowest_col] <- NA
-
-      # Handle rows and columns with "@" symbol
-      if (grepl("@", lowest_col)) {
-        col_parts <- unlist(strsplit(lowest_col, "@"))
-        for (part in col_parts) {
-          result <- paste(rowname, part, sep = "@")
-          #print(result)
-          haplos <- c(haplos, result)
-        }
-      } else {
-        result <- paste(rowname, lowest_col, sep = "@")
-        #print(result)
-        haplos <- c(haplos, result)
-      }
-    }
-
-    partial_haplos[[i]] <- haplos
-  }
-
-  ###si sólo hay 1 dataframe en la lista partial_haplos (no hace falta linking, sólo acomodar en dataframe con @ como separador): IF
-  if (length(partial_haplos) ==1 ){
-    full_haplos<- data.frame(do.call(rbind, strsplit(partial_haplos[[1]], "@")))
-  }else{
-    ####si hay más de 1 dataframe en la lista partial_haplos: ELSE
-    #formatting
-    partial_haplos<-lapply(partial_haplos, function(x) {
-      data.frame(strings = unlist(strsplit(x, "@")))
-    })
-
-    partial_haplos<-lapply(partial_haplos, function(df) {
-      df$strings2 <- NA 
-      df$strings2[c(FALSE, TRUE)] <- df$strings[c(FALSE, TRUE)] 
-      df$strings[c(FALSE, TRUE)] <- NA  
-      df <- fill(df, strings, .direction = "down") 
-      df <- fill(df, strings2, .direction = "up")  
-      df <- df[complete.cases(df), ]
-      df <- df[seq(1, nrow(df), by = 2), ]
-      return(df)
-    })
-
-    ##LINK PARTIAL HAPLOTYPES TOGETHER
-    full_haplos <- data.frame()
-
-    # Iterate through each pair of adjacent dataframes
-    for (i in 1:(length(partial_haplos) - 1)) {
-
-      if (i==0){
-        i<-i+1
-      }
-
-      df1 <- partial_haplos[[i]]
-
-      if (i + 1 <= length(partial_haplos)) {
-        df2 <- partial_haplos[[i + 1]]
-
-        for (j in 1:nrow(df1)) {
-          element <- df1[j, ncol(df1)]
-
-          if (nrow(df2) > 0) {
-            matching_rows <- df2[grep(element, df2[, 1]), ]
-
-            if (nrow(matching_rows) > 0) {
-              df1_merged <- df1[j, -ncol(df1)]
-              combined_rows <- cbind(df1_merged, matching_rows)
-              full_haplos <- rbind(full_haplos, combined_rows)
-            }
-          }
-        }
-
-      } else {
-        full_haplos<- as.data.frame(partial_haplos)
-      }
-    }
-  }
-
-  #label full haplotypes
-  full_haplos$haplos <- paste0("HAPLOTYPE", 1:nrow(full_haplos))     
-
-  ##if there are @ in sorted_polyclonal$locus... reformat with original alleles, removing the average alleles.
-  if (any(grepl("@", sorted_polyclonal$locus))){
-    #sort
-    sorted_polyclonal <- muestra %>%
-      arrange(sampleID, locus, n.alleles, desc(norm.reads.locus)) %>%
-      group_by(locus) %>%
-      arrange(n.alleles)
-
-    #split mono and polyallelic loci
-    monoallelic_loci <- sorted_polyclonal %>%
-      filter(n.alleles == 1)
-
-    sorted_polyclonal <- sorted_polyclonal %>%
-      filter(n.alleles > 1)
-  }
-
-  #final format
-  sorted_polyclonal$haplotypes<-NA
-
-  for (i in 1:nrow(full_haplos)) {
-    row_data <- full_haplos[i, ]
-    match_indices <- sapply(row_data, function(element) grep(element, sorted_polyclonal$allele))
-    match_indices <- unique(unlist(match_indices))
-    if (length(match_indices) > 0) {
-      for (index in match_indices) {
-        if (is.na(sorted_polyclonal$haplotypes[index])) {
-          sorted_polyclonal$haplotypes[index] <- row_data$haplos
-        } else {
-          existing_haplos <- sorted_polyclonal$haplotypes[index]
-          new_haplos <- paste0(existing_haplos, "_", row_data$haplos)
-          sorted_polyclonal$haplotypes[index] <- new_haplos
-        }
-      }
-    }
-  }
-
-  monoallelic_loci$haplotypes<-paste0("HAPLOTYPE", 1:n_haplos, collapse = "_")
-
-  #concatenate complete sample
-  PHASED_SAMPLE<-rbind(monoallelic_loci, sorted_polyclonal)
-
-  }
-  PARTIAL_OUTPUT_2 <- rbind(PHASED_SAMPLE, PARTIAL_OUTPUT_2)
-
-  print(paste(sample, ": PHASED!")) 
+################# LIMIT OF DETETION FLAGGING OF HAPLOS ##############
+
+#thresholds may change. current ones work perfectly for the DD2 gradient, but more sequencing may be needed. ALSO, no dhps gradients atm
+LOD_dhfr_51 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
+LOD_dhfr_59 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
+LOD_dhfr_108 <- 0.299350895389018 # according to DD2 gradient: lowest correct value
+
+#for each sample, if loci is multiallelic, flag haplos freq below LOD for each loci as "dubious" for each allele.
+flag_haplotypes <- function(df, locus, lod_threshold) {
+  # Create a new column with "dubious" for haplotypes with HAPLO_FREQ_RECALC < LOD threshold, "correct" otherwise
+  df[paste0("flag_", locus)] <- ifelse(df$HAPLO_FREQ_RECALC < lod_threshold, "dubious", "correct")
+  return(df)
 }
 
-OUTPUT_FINAL <- rbind(PARTIAL_OUTPUT_1, PARTIAL_OUTPUT_2)
+RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
+  group_by(SampleID) %>%
+  do(flag_haplotypes(., "dhfr_51", LOD_dhfr_51)) %>%
+  do(flag_haplotypes(., "dhfr_59", LOD_dhfr_59)) %>%
+  do(flag_haplotypes(., "dhfr_108", LOD_dhfr_108))
 
-write.table(OUTPUT_FINAL, file=paste0(outfile,".csv"), quote=F, sep="\t", col.names=T, row.names=F)
+write.csv(RESULTS_FINAL_FLAGGED, "phased_haplos.csv", row.names =FALSE)
+
+#subset the dataframe to remove the dubious rows
+dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0
+RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
+
+write.csv(RESULTS_FINAL_FLAGGED_correct_only, "phased_haplos_correct_only.csv", row.names =FALSE)
+
+################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
+
+generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, profile_plot) {
+  # Formatting
+  haplos <- paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+  haplo_counts <- table(haplos)
+  haplo_counts <- as.data.frame(haplo_counts)
+  haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
+  haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
+  
+  # Barplot of counts
+  p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Haplotype Counts", x = NULL, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    guides(fill = FALSE)
+  
+  # Pie chart of proportions of haplos
+  q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar(theta = "y") +
+    labs(title = "Proportion of Haplotypes", x = NULL) +
+    scale_x_discrete(labels = NULL)
+  
+  grid_plot1 <- grid.arrange(p, q, ncol = 2)
+  
+  # Histograms of frequency of each haplo
+  histogram_plots <- list()
+  
+  for (haplo in unique(haplos)) {
+    freq_vector <- RESULTS_FINAL$HAPLO_FREQ_RECALC[haplos == haplo]
+    
+    plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
+      geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color = "cadetblue3") +
+      labs(title = haplo, x = "Frequency", y = "Count") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+    
+    histogram_plots[[haplo]] <- plot
+  }
+  
+  grid_plot2 <- grid.arrange(grobs = histogram_plots, ncol = 4)
+  
+  # Stacked barplot per sample (only multiallelic)
+  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+  RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
+  
+  a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Haplotype Frequencies", x = "SampleID", y = "Haplo Frequency") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1) , legend.position = "top") +
+    guides(fill = guide_legend(title = "Haplotype"))
+  
+  grid_plot3 <- a
+  
+  # Save plots to files
+  ggsave(props_plot, grid_plot1, width = 16, height = 9)
+  ggsave(hist_plot, grid_plot2, width = 14, height = 10)
+  ggsave(profile_plot, grid_plot3, width = 12, height = 9)
+}
+
+# plot all haplotypes
+generate_haplo_summary_plots(RESULTS_FINAL, "haplo_counts_proportions.png", "haplos_histograms.png", "haplo_profile_multiallelic.png")
+
+# plot only correct haplotypes
+generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, "haplo_counts_proportions_correct_only.png", "haplos_histograms_correct_only.png", "haplo_profile_multiallelic_correct_only.png")

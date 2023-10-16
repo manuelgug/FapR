@@ -150,8 +150,8 @@ for (sample in unique_samples){
 ################# LIMIT OF DETETION FLAGGING OF HAPLOS ##############
 
 #thresholds may change. current ones work perfectly for the DD2 gradient, but more sequencing may be needed. ALSO, no dhps gradients atm
-#LOD_dhfr_51 <- 0.0372 # according to DD2 gradient
-#LOD_dhfr_59 <- 0.0372 # according to DD2 gradient
+LOD_dhfr_51 <- 0.0372670807453416 # according to DD2 gradient
+LOD_dhfr_59 <- 0.0372670807453416 # according to DD2 gradient
 LOD_dhfr_108 <- 0.262337662337662 # according to DD2 gradient
 
 #for each sample, if loci is multiallelic, flag haplos freq below LOD for each loci as "dubious" for each allele.

@@ -239,3 +239,33 @@ generate_haplo_summary_plots(RESULTS_FINAL, "haplo_counts_proportions.png", "hap
 
 # plot only correct haplotypes
 generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, "haplo_counts_proportions_correct_only.png", "haplos_histograms_correct_only.png", "haplo_profile_multiallelic_correct_only.png")
+
+
+
+RESULTS_FINAL_FLAGGED_correct_only$Haplotype <- do.call(paste0, RESULTS_FINAL_FLAGGED_correct_only[, 2:6])
+RESULTS_FINAL_FLAGGED_correct_only <- subset(RESULTS_FINAL_FLAGGED_correct_only, HAPLO_FREQ_RECALC != 1)
+
+RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED_correct_only %>%
+  arrange(SampleID, Haplotype)
+
+coocurring_haplos <- RESULTS_FINAL_FLAGGED_correct_only %>%
+  group_by(SampleID) %>%
+  summarize(Coocurring_Haplotypes = paste(Haplotype, collapse = "_"))
+
+coocurring_haplos_counts<-as.data.frame(colSums(table(coocurring_haplos)))
+
+df<-cbind(rownames(coocurring_haplos_counts), coocurring_haplos_counts)
+
+colnames(df)<-c("Haplotypes","Count")
+
+df <- df %>%
+  filter(grepl("_", Haplotypes))
+
+df$Haplotypes <- reorder(df$Haplotypes, -df$Count)
+
+cooc <- ggplot(df, aes(x = Haplotypes, y = Count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Counts (Samples)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("haplo_combos_multiallelic_correct_only.png", cooc, width = 12, height = 9)

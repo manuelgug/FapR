@@ -25,7 +25,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N3D7_Dd2_k13_75_S153"
+  #sample <-"N1961056_6_S259"
   
   COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -36,7 +36,7 @@ for (sample in unique_samples){
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
   # 2) select sample's COI
-  COI<- trunc(moire_output[moire_output$sample_id == sample,]["post_coi_mean"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  COI<- trunc(moire_output[moire_output$sample_id == sample,]["naive_coi"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))

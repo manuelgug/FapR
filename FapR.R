@@ -5,7 +5,7 @@ library(optparse)
 
 # Define the command-line arguments
 option_list <- list(
-  make_option(c("--resmarkers_table", "-i"), type = "character", help = "Resmarkers table from mad4hatter v0.1.8", default = "HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
+  make_option(c("--resmarkers_table", "-i"), type = "character", help = "FILTERED resmarkers table from mad4hatter v0.1.8", default = "HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
   make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test"),
   make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "moire_output_dhfr_dhps.csv")
 )
@@ -52,7 +52,7 @@ for (sample in unique_samples){
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
   # 2) select sample's COI
-  COI<- trunc(moire_output[moire_output$sample_id == sample,]["naive_coi"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  COI<- round(moire_output[moire_output$sample_id == sample,]["post_coi_med"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))

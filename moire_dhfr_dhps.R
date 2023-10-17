@@ -6,8 +6,8 @@ library(optparse)
 
 # Define the command-line arguments
 option_list <- list(
-  make_option(c("--allele_table", "-i"), type = "character", help = "Allele table from mad4hatter v0.1.8", default = "HSF22_01_allele_data_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
-  make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test")
+  make_option(c("--allele_table", "-i"), type = "character", help = "FILTERED allele table from mad4hatter v0.1.8", default = NULL),
+  make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = NULL)
 )
 
 # Parse the command-line arguments

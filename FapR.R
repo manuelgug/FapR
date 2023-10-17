@@ -1,10 +1,26 @@
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
+library(optparse)
+
+# Define the command-line arguments
+option_list <- list(
+  make_option(c("--resmarkers_table", "-i"), type = "character", help = "Resmarkers table from mad4hatter v0.1.8", default = "HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
+  make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test"),
+  make_option(c("--moire_output", "-o"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "moire_output_dhfr_dhps.csv")
+)
+
+# Parse the command-line arguments
+opt <- parse_args(OptionParser(option_list = option_list))
+
+# Check if the required arguments are provided
+if (is.null(opt$resmarkers_table) || is.null(opt$output_prefix)) {
+  stop("Both --resmarkers_table and --output_prefix arguments are required.")
+}
 
 ################## IMPORT AND FORMAT DATA ################## 
 
-resmarkers_table <- read.csv("HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
+resmarkers_table <- read.csv(opt$resmarkers_table)
 
 #subset relevant markers
 markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_437", "dhps_540")
@@ -14,7 +30,7 @@ resmarkers_table <- resmarkers_table %>%
 
 resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
 
-moire_output <- read.csv("moire_output_dhfr_dhps.csv") #dhfr-dhps specific moire run
+moire_output <- read.csv(opt$moire_output) #dhfr-dhps specific moire run
 
 
 ################## MAIN LOOP ################## 
@@ -25,7 +41,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N1961056_6_S259"
+  #sample <-"N3D7_Dd2_k13_60_S154"
   
   COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -167,13 +183,13 @@ RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
   do(flag_haplotypes(., "dhfr_59", LOD_dhfr_59)) %>%
   do(flag_haplotypes(., "dhfr_108", LOD_dhfr_108))
 
-write.csv(RESULTS_FINAL_FLAGGED, "phased_haplos.csv", row.names =FALSE)
+write.csv(RESULTS_FINAL_FLAGGED, paste0(opt$output_prefix, "_phased_haplos.csv"), row.names =FALSE)
 
 #subset the dataframe to remove the dubious rows
 dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0
 RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
 
-write.csv(RESULTS_FINAL_FLAGGED_correct_only, "phased_haplos_correct_only.csv", row.names =FALSE)
+write.csv(RESULTS_FINAL_FLAGGED_correct_only, paste0(opt$output_prefix, "_phased_haplos_correct_only.csv"), row.names =FALSE)
 
 ################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
 
@@ -235,11 +251,16 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
 }
 
 # plot all haplotypes
-generate_haplo_summary_plots(RESULTS_FINAL, "haplo_counts_proportions.png", "haplos_histograms.png", "haplo_profile_multiallelic.png")
+generate_haplo_summary_plots(RESULTS_FINAL, 
+                             paste0(opt$output_prefix, "_haplo_counts_proportions.png"), 
+                             paste0(opt$output_prefix, "_haplos_histograms.png"), 
+                             paste0(opt$output_prefix, "_haplo_profile_multiallelic.png"))
 
 # plot only correct haplotypes
-generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, "haplo_counts_proportions_correct_only.png", "haplos_histograms_correct_only.png", "haplo_profile_multiallelic_correct_only.png")
-
+generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, 
+                             paste0(opt$output_prefix, "_haplo_counts_proportions_correct_only.png"), 
+                             paste0(opt$output_prefix, "_haplos_histograms_correct_only.png"), 
+                             paste0(opt$output_prefix, "_haplo_profile_multiallelic_correct_only.png"))
 
 
 RESULTS_FINAL_FLAGGED_correct_only$Haplotype <- do.call(paste0, RESULTS_FINAL_FLAGGED_correct_only[, 2:6])
@@ -268,4 +289,4 @@ cooc <- ggplot(df, aes(x = Haplotypes, y = Count)) +
   labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Counts (Samples)") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave("haplo_combos_multiallelic_correct_only.png", cooc, width = 12, height = 9)
+ggsave(paste0(opt$output_prefix, "_haplo_combos_multiallelic_correct_only.png"), cooc, width = 12, height = 9)

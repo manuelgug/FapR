@@ -1,8 +1,19 @@
 
 #run moire with only  dhps-dhfr amplicons
-library(moire)
 
-alleles<-read.csv("HSF22_01_allele_data_global_max_0_filtered_resmarkers_FIX_has_DD2.csv")
+library(moire)
+library(optparse)
+
+# Define the command-line arguments
+option_list <- list(
+  make_option(c("--allele_table", "-i"), type = "character", help = "Allele table from mad4hatter v0.1.8", default = "HSF22_01_allele_data_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
+  make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test")
+)
+
+# Parse the command-line arguments
+opt <- parse_args(OptionParser(option_list = option_list))
+
+alleles<-read.csv(opt$allele_table)
 colnames(alleles)[1] <- "sample_id"
 
 #subset amplicons of interest
@@ -30,10 +41,10 @@ mcmc_results <- moire::run_mcmc(
 )
 
 #checkpoint
-saveRDS(mcmc_results, "allele_data_global_max_0_filtered_MOIRE-RESULTS_dhfr_dhps_only.RDS")
+saveRDS(mcmc_results, paste0(opt$output_prefix, "_MOIRE-RESULTS_dhfr_dhps_only.RDS"))
 
 #resume checkpoint
-mcmc_results <- readRDS("allele_data_global_max_0_filtered_MOIRE-RESULTS_dhfr_dhps_only.RDS")
+mcmc_results <- readRDS(paste0(opt$output_prefix, "_MOIRE-RESULTS_dhfr_dhps_only.RDS"))
 
 eff_coi <- moire::summarize_effective_coi(mcmc_results)
 naive_coi <- moire::summarize_coi(mcmc_results)
@@ -42,4 +53,4 @@ relatedness <- moire::summarize_relatedness(mcmc_results)
 input_df <- merge(naive_coi, eff_coi, by="sample_id")
 input_df <- merge(input_df, relatedness, by="sample_id")
 
-write.csv(input_df, "moire_output_dhfr_dhps.csv")
+write.csv(input_df, paste0(opt$output_prefix, "_moire_output_dhfr_dhps.csv"))

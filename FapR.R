@@ -5,9 +5,9 @@ library(optparse)
 
 # Define the command-line arguments
 option_list <- list(
-  make_option(c("--resmarkers_table", "-i"), type = "character", help = "FILTERED resmarkers table from mad4hatter v0.1.8", default = "HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
+  make_option(c("--resmarkers_table", "-i"), type = "character", help = "FILTERED resmarkers table from mad4hatter v0.1.8", default = "../results_v0.1.8_RESMARKERS_FIX/HFS_22_03_RESULTS_v0.1.8_FILTERED/resmarker_table_global_max_0_filtered.csv"),
   make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test"),
-  make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "moire_output_dhfr_dhps.csv")
+  make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "HFS22_03_moire_output_dhfr_dhps.csv")
 )
 
 # Parse the command-line arguments
@@ -41,7 +41,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_437 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N3D7_Dd2_k13_60_S154"
+  #sample <-"N148_S135"
   
   COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -88,6 +88,12 @@ for (sample in unique_samples){
   
   comb_alleles <- expand.grid(alleles)
   comb_freqs <- expand.grid(freqs)
+  
+  # Check if comb_alleles is empty, and if so, skip to the next sample
+  if (nrow(comb_alleles) == 0) {
+    cat("Skipping sample", sample, "\n")
+    next
+  }
   
   comb_alleles_matrix <- as.data.frame(comb_alleles)
   colnames(comb_alleles_matrix) <- c("dhps_437", "dhps_540", "dhfr_51","dhfr_59", "dhfr_108")

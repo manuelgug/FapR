@@ -7,15 +7,15 @@ library(optparse)
 option_list <- list(
   make_option(c("--resmarkers_table", "-i"), type = "character", help = "Resmarkers table from mad4hatter v0.1.8", default = "HSF22_01_resmarker_table_global_max_0_filtered_resmarkers_FIX_has_DD2.csv"),
   make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test"),
-  make_option(c("--moire_output", "-o"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "moire_output_dhfr_dhps.csv")
+  make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "moire_output_dhfr_dhps.csv")
 )
 
 # Parse the command-line arguments
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # Check if the required arguments are provided
-if (is.null(opt$resmarkers_table) || is.null(opt$output_prefix)) {
-  stop("Both --resmarkers_table and --output_prefix arguments are required.")
+if (is.null(opt$resmarkers_table) || is.null(opt$output_prefix) || is.null(opt$moire_output)) {
+  stop("All --resmarkers_table, --output_prefix and --moire_output arguments are required.")
 }
 
 ################## IMPORT AND FORMAT DATA ################## 
@@ -206,7 +206,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
     geom_bar(stat = "identity") +
     labs(title = "Haplotype Counts", x = NULL, y = "Count") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    guides(fill = FALSE)
+    guides(fill = "none")
   
   # Pie chart of proportions of haplos
   q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +

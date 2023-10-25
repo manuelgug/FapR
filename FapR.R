@@ -179,7 +179,10 @@ for (sample in unique_samples){
 LOD_dhfr_51 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
 LOD_dhfr_59 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
 LOD_dhfr_108 <- 0.299350895389018 # according to DD2 gradient: lowest correct value; 0.164061810215753 en HB3 gradient, but using the more astringent tho. VARÍA ENTRE RUNS!! PENSAR QUÑÉ HACER.
+LOD_dhps_431 <- 0.00991796253214094 # according to HB3 gradient: lowest correct value
 LOD_dhps_437 <- 0.00991796253214094 # according to HB3 gradient: lowest correct value
+#LOD_dhps_540 <- ? #no gradient for this position
+#LOD_dhps_581 <- ? #no gradient for this position
 
 #for each sample, if loci is multiallelic, flag haplos freq below LOD for each loci as "dubious" for each allele.
 flag_haplotypes <- function(df, locus, lod_threshold) {
@@ -190,6 +193,7 @@ flag_haplotypes <- function(df, locus, lod_threshold) {
 
 RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
   group_by(SampleID) %>%
+  do(flag_haplotypes(., "dhps_431", LOD_dhps_431)) %>%
   do(flag_haplotypes(., "dhps_437", LOD_dhps_437)) %>%
   do(flag_haplotypes(., "dhfr_51", LOD_dhfr_51)) %>%
   do(flag_haplotypes(., "dhfr_59", LOD_dhfr_59)) %>%

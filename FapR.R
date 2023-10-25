@@ -115,7 +115,7 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || 1-sum(RESULTS$HAPLO_FREQ) > 0.01) { ## PULIR CONDICIÓN? (precious condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || 1-sum(RESULTS$HAPLO_FREQ) > 0.01) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
       
       i_counter <- i_counter + 1
       
@@ -207,10 +207,13 @@ RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
   do(flag_haplotypes(., "dhfr_59", LOD_dhfr_59)) %>%
   do(flag_haplotypes(., "dhfr_108", LOD_dhfr_108))
 
+#remove haplotypes with "dubious" on all flags
+all_dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") == length(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))])
+RESULTS_FINAL_FLAGGED <- RESULTS_FINAL_FLAGGED[!all_dubious_rows, ]
 
 write.csv(RESULTS_FINAL_FLAGGED, paste0(opt$output_prefix, "_phased_haplos.csv"), row.names =FALSE)
 
-#subset the dataframe to remove the dubious rows
+#subset the dataframe to remove rows that have at least one "dubious" flag
 dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0
 RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
 

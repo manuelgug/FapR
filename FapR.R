@@ -28,6 +28,12 @@ markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_431", "dhps_437", 
 resmarkers_table <- resmarkers_table %>%
   filter(grepl(paste(markers_to_phase, collapse = "|"), resmarker))
 
+#for resmarkers with 2 amplicons (as dhps_581), keep the one with the highest amount of reads
+resmarkers_table <- resmarkers_table %>%
+  group_by(SampleID, resmarker) %>%
+  filter(Reads == max(Reads)) %>%
+  ungroup()
+
 resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
 
 moire_output <- read.csv(opt$moire_output) #dhfr-dhps specific moire run
@@ -41,7 +47,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N148_S135"
+  #sample <-"N1928295_4_S22"
   
   COI_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()

@@ -181,6 +181,9 @@ for (sample in unique_samples){
 }
 
 
+RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
+
 ################# LIMIT OF DETETION FLAGGING OF HAPLOS ##############
 
 #thresholds may change. current ones work perfectly for the DD2 gradient, but more sequencing may be needed. ALSO, no dhps gradients atm
@@ -219,9 +222,12 @@ RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
 
 write.csv(RESULTS_FINAL_FLAGGED_correct_only, paste0(opt$output_prefix, "_phased_haplos_correct_only.csv"), row.names =FALSE)
 
+
+
+
 ################## CHECKS, VISUALIZATIONS, VALIDATION ################## 
 
-generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, profile_plot) {
+generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_multi, hist_plot, profile_plot) {
   # Formatting
   haplos <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
   haplo_counts <- table(haplos)
@@ -245,6 +251,32 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
   
   grid_plot1 <- grid.arrange(p, q, ncol = 2)
   
+  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
+  RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
+  
+  # Formatting
+  haplos <- paste(RESULTS_FINAL_multiallelic$dhps_431, RESULTS_FINAL_multiallelic$dhps_437, RESULTS_FINAL_multiallelic$dhps_540, RESULTS_FINAL_multiallelic$dhps_581, RESULTS_FINAL_multiallelic$dhfr_51, RESULTS_FINAL_multiallelic$dhfr_59, RESULTS_FINAL_multiallelic$dhfr_108, sep = "_")
+  haplo_counts <- table(haplos)
+  haplo_counts <- as.data.frame(haplo_counts)
+  haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
+  haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
+  
+  # Barplot of counts
+  r <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Haplotype Counts", x = NULL, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    guides(fill = "none")
+  
+  # Pie chart of proportions of haplos
+  s <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar(theta = "y") +
+    labs(title = "Proportion of Haplotypes", x = NULL) +
+    scale_x_discrete(labels = NULL)
+  
+  grid_plot1_1 <- grid.arrange(r, s, ncol = 2)
+  
   # Histograms of frequency of each haplo
   histogram_plots <- list()
   
@@ -260,10 +292,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
   
   grid_plot2 <- grid.arrange(grobs = histogram_plots, ncol = 4)
   
-  # Stacked barplot per sample (only multiallelic)
-  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
-  RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
-  
+  # Haplo profile (barplot) multiallelic only
   a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
     geom_bar(stat = "identity") +
     labs(title = "Haplotype Frequencies", x = "SampleID", y = "Haplo Frequency") +
@@ -274,6 +303,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
   
   # Save plots to files
   ggsave(props_plot, grid_plot1, width = 16, height = 9)
+  ggsave(props_plot_multi, grid_plot1_1, width = 16, height = 9)
   ggsave(hist_plot, grid_plot2, width = 14, height = 10)
   ggsave(profile_plot, grid_plot3, width = 12, height = 9)
 }
@@ -281,12 +311,14 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, hist_plot, p
 # plot all haplotypes
 generate_haplo_summary_plots(RESULTS_FINAL, 
                              paste0(opt$output_prefix, "_haplo_counts_proportions.png"), 
+                             paste0(opt$output_prefix, "_haplo_counts_proportions_multiallelic.png"), 
                              paste0(opt$output_prefix, "_haplos_histograms.png"), 
                              paste0(opt$output_prefix, "_haplo_profile_multiallelic.png"))
 
 # plot only correct haplotypes
 generate_haplo_summary_plots(RESULTS_FINAL_FLAGGED_correct_only, 
                              paste0(opt$output_prefix, "_haplo_counts_proportions_correct_only.png"), 
+                             paste0(opt$output_prefix, "_haplo_counts_proportions_correct_only_multiallelic.png"), 
                              paste0(opt$output_prefix, "_haplos_histograms_correct_only.png"), 
                              paste0(opt$output_prefix, "_haplo_profile_multiallelic_correct_only.png"))
 

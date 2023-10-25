@@ -5,9 +5,9 @@ library(optparse)
 
 # Define the command-line arguments
 option_list <- list(
-  make_option(c("--resmarkers_table", "-i"), type = "character", help = "FILTERED resmarkers table from mad4hatter v0.1.8", default = "../results_v0.1.8_RESMARKERS_FIX/HFS_NextSeq01_RESULTS_v0.1.8_FILTERED/resmarker_table_global_max_0_filtered.csv"),
+  make_option(c("--resmarkers_table", "-i"), type = "character", help = "FILTERED resmarkers table from mad4hatter v0.1.8", default = "../results_v0.1.8_RESMARKERS_FIX/SMC2_NextSeq03_221122_RESULTS_v0.1.8_FILTERED/resmarker_table_global_max_0_filtered.csv"),
   make_option(c("--output_prefix", "-o"), type = "character", help = "Distinctive prefix for your output files", default = "test")
-  #make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "HFS22_01_moire_output_dhfr_dhps.csv")
+  #, make_option(c("--moire_output", "-m"), type = "character", help = "Moire output calculated from the dhfr-dhps amplicons", default = "HFS22_01_moire_output_dhfr_dhps.csv")
 )
 
 # Parse the command-line arguments
@@ -49,7 +49,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"N3D7_Dd2_k13_25_S157"
+  #sample <-"NQS2_-_QC2_10k_S250"
   
   i_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -60,7 +60,7 @@ for (sample in unique_samples){
   sID <- resmarkers_table[resmarkers_table$SampleID == sample,]
   
   # 2) select sample's COI
-  COI<- round(moire_output[moire_output$sample_id == sample,]["post_coi_med"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  #COI<- round(moire_output[moire_output$sample_id == sample,]["post_coi_med"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
@@ -147,7 +147,7 @@ for (sample in unique_samples){
       # Append most likely haplo
       MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
       temp <- comb_freqs_matrix[highest_prob, ]
-      temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:5])
+      temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:7])
       temp$HAPLO_FREQ_RECALC <- NA
       MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
       

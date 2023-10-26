@@ -49,7 +49,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dh
 # INIT LOOP HERE!
 for (sample in unique_samples){
   
-  #sample <-"NQS2_-_QC2_10k_S250"
+  #sample <-"NQS1_-_QC2_10k_S249"
   
   i_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -189,7 +189,7 @@ RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1,
 #thresholds may change. current ones work perfectly for the DD2 gradient, but more sequencing may be needed. ALSO, no dhps gradients atm
 LOD_dhfr_51 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
 LOD_dhfr_59 <- 0.0372670807453416 # according to DD2 gradient: lowest correct value
-LOD_dhfr_108 <- 0.299350895389018 # according to DD2 gradient: lowest correct value; 0.164061810215753 en HB3 gradient, but using the more astringent tho. VARÍA ENTRE RUNS!! PENSAR QUÑÉ HACER.
+LOD_dhfr_108 <- 0.299350895389018 # according to DD2 gradient: lowest correct value; 0.164061810215753 in HB3 gradient and 0.133363977705396 in QS1QC2 mix, but using the more astringent tho. VARÍA ENTRE RUNS!! PENSAR QUÑÉ HACER.
 LOD_dhps_431 <- 0.00991796253214094 # according to HB3 gradient: lowest correct value
 LOD_dhps_437 <- 0.00991796253214094 # according to HB3 gradient: lowest correct value
 #LOD_dhps_540 <- ? #no gradient for this position
@@ -256,7 +256,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
     geom_bar(stat = "identity") +
     labs(title = "Haplotype Counts", x = NULL, y = "Count") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
     guides(fill = "none")
   
   # Pie chart of proportions of haplos
@@ -282,7 +282,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   r <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
     geom_bar(stat = "identity") +
     labs(title = "Haplotype Counts", x = NULL, y = "Count") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
     guides(fill = "none")
   
   # Pie chart of proportions of haplos
@@ -313,7 +313,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
     geom_bar(stat = "identity") +
     labs(title = "Haplotype Frequencies", x = "SampleID", y = "Haplo Frequency") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1) , legend.position = "top") +
+    theme(axis.text.x = element_text(angle = 65, hjust = 1) , legend.position = "top") +
     guides(fill = guide_legend(title = "Haplotype"))
   
   grid_plot3 <- a
@@ -364,6 +364,6 @@ df$Haplotypes <- reorder(df$Haplotypes, -df$Count)
 cooc <- ggplot(df, aes(x = Haplotypes, y = Count)) +
   geom_bar(stat = "identity") +
   labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Counts (Samples)") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
 ggsave(paste0(opt$output_prefix, "_haplo_combos_multiallelic_correct_only.png"), cooc, width = 12, height = 9)

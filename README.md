@@ -21,8 +21,8 @@ Rscript FapR.R -i [resmarker_table_global_max_0_filtered.csv] -o [output_prefix]
 ### Phasing
 FapR uses an iterative approach on which haplotypes are accepted based on 
 
-1. **Probability of occurring in a sample**: haplotypes built from highly abundant resmarkers are more liekly to be true.
-2. **Variance on the resmarker frequencies**: haplotypes built from similarly abundant resmarkers are more liekly to be true.
+1. **Probability of occurring in a sample**: haplotypes built from highly abundant resmarkers are more likely to be true.
+2. **Variance on the resmarker frequencies**: haplotypes built from similarly abundant resmarkers are more likely to be true.
 
 ### Flagging
 Phased haplotypes are flagged based on: 

@@ -225,7 +225,7 @@ haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
 
 thresh_pop_freq = mean(haplo_counts$proportion) # DECIDE ON HOW TO CALCUALTE THIS THRESHOLD!!!! MEAN IS JUST FOR TESTING PURPOSES
 
-#if haplo_counts$proportion => threshold_prevalence, add RESULTS_FINAL_FLAGGED$flag_prevalence = "PASSED" whenever haplo_counts$haplo matches RESULTS_FINAL_FLAGGED$haplotype, else add NA
+#if haplo_counts$proportion => threshold_pop_freq, add RESULTS_FINAL_FLAGGED$flag_prevalence = "PASSED" whenever haplo_counts$haplo matches RESULTS_FINAL_FLAGGED$haplotype, else add NA
 
 RESULTS_FINAL_FLAGGED <- RESULTS_FINAL_FLAGGED %>%
   left_join(haplo_counts, by = c("haplotype" = "haplos")) %>%
@@ -263,8 +263,9 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
     geom_bar(stat = "identity", width = 1) +
     coord_polar(theta = "y") +
-    labs(title = "Haplotype Frequency", x = NULL) +
-    scale_x_discrete(labels = NULL)
+    labs(title = "Haplotype Frequency", x = "") +
+    scale_x_discrete(labels = NULL)+
+    theme(axis.title.x = element_blank()) 
   
   grid_plot1 <- grid.arrange(p, q, ncol = 2)
   
@@ -289,8 +290,9 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   s <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
     geom_bar(stat = "identity", width = 1) +
     coord_polar(theta = "y") +
-    labs(title = "Haplotype Frequencies", x = NULL) +
-    scale_x_discrete(labels = NULL)
+    labs(title = "Haplotype Frequencies", x = "") +
+    scale_x_discrete(labels = NULL)+
+    theme(axis.title.x = element_blank()) 
   
   grid_plot1_1 <- grid.arrange(r, s, ncol = 2)
   
@@ -302,7 +304,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
     
     plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
       geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color = "cadetblue3") +
-      labs(title = haplo, x = "Prevalence", y = "Samples") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+      labs(title = haplo, x = "Frequency", y = "Samples") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
     
     histogram_plots[[haplo]] <- plot
   }
@@ -312,7 +314,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   # Haplo profile (barplot) multiallelic only
   a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
     geom_bar(stat = "identity") +
-    labs(title = "Haplotype Profiles", x = "SampleID", y = "Frequency") +
+    labs(title = "Haplotype Profiles", x = NULL, y = "Frequency") +
     theme(axis.text.x = element_text(angle = 65, hjust = 1) , legend.position = "top") +
     guides(fill = guide_legend(title = "Haplotype"))
   

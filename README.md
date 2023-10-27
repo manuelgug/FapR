@@ -19,12 +19,15 @@ Rscript FapR.R -i [resmarker_table_global_max_0_filtered.csv] -o [output_prefix]
 2. There are no copy number variants (CNV) on the amplicons.
 
 ### Phasing
-FapR uses an iterative approach on which haplotypes are accepted based on their probability of occurring in a sample and the variance on the allele frequencies that make them up.
+FapR uses an iterative approach on which haplotypes are accepted based on 
+
+1. **Probability of occurring in a sample**: haplotypes built from highly abundant resmarkers are more liekly to be true.
+2. **Variance on the resmarker frequencies**: haplotypes built from similarly abundant resmarkers are more liekly to be true.
 
 ### Flagging
 Phased haplotypes are flagged based on: 
 
-1. Frequency in the sequencing run (assuming it is from a given population): allows to catch haplotypes that are frequent in the run, but have a low abundance in particular samples. This flag takes precedent over the following.
-2. Limit of detection of each amplicon (experimentally tested): allows to catch haplotypes that are rare in the run, but moderate to highly abundant in particular samples. This also allows to build partial haplotypes.
+1. **Frequency in the sequencing run** (assuming it is from a given population): allows to catch haplotypes that are frequent in the run, but have a low abundance in particular samples. This flag takes precedent over the following.
+2. **Limit of detection of each amplicon** (experimentally tested): allows to catch haplotypes that are rare in the run, but moderate to highly abundant in particular samples. This also allows to build partial haplotypes.
 
 

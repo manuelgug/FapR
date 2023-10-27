@@ -14,14 +14,12 @@ Rscript FapR.R -i [resmarker_table_global_max_0_filtered.csv] -o [output_prefix]
 
 ## Script Overview
 
-
-### Phasing
-
 #### Assumptions
 1. All alleles in the input file are true alleles. Appropriate filtering is strongly suggested.
 2. There are no copy number variants (CNV) on the amplicons.
 
-#### Conditions
+### Phasing
+FapR uses an iterative approach on which haplotypes are accepted based on their probability of occurring in a sample and the variance on the allele frequencies that make them up.
 
 ### Flagging
 

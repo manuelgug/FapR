@@ -12,14 +12,7 @@ The following R packages must be installed: `ggplot2`, `dplyr`, `gridExtra`, and
 Rscript FapR.R -i [resmarker_table_global_max_0_filtered.csv] -o [output_prefix]
 ```
 
-### Arguments
-
-- `allele_data`: Path to the input allele data file.
-- `outfile`: Prefix appended to the output files.
-
 ## Script Overview
-
-The script can be divided into three main sections: data preparation, exploratory data analysis, and phasing.
 
 
 ### Phasing
@@ -30,5 +23,5 @@ The script can be divided into three main sections: data preparation, explorator
 
 #### Conditions
 
+### Flagging
 
-### Algorithm

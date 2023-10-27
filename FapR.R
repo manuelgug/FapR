@@ -223,13 +223,13 @@ haplo_counts <- as.data.frame(haplo_counts)
 haplo_counts$haplos <- factor(haplo_counts$haplos, levels = haplo_counts$haplos[order(-haplo_counts$Freq)])
 haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
 
-thresh_prevalence = mean(haplo_counts$proportion) # DECIDE ON HOW TO CALCUALTE THIS THRESHOLD!!!! MEAN IS JUST FOR TESTING PURPOSES
+thresh_pop_freq = mean(haplo_counts$proportion) # DECIDE ON HOW TO CALCUALTE THIS THRESHOLD!!!! MEAN IS JUST FOR TESTING PURPOSES
 
 #if haplo_counts$proportion => threshold_prevalence, add RESULTS_FINAL_FLAGGED$flag_prevalence = "PASSED" whenever haplo_counts$haplo matches RESULTS_FINAL_FLAGGED$haplotype, else add NA
 
 RESULTS_FINAL_FLAGGED <- RESULTS_FINAL_FLAGGED %>%
   left_join(haplo_counts, by = c("haplotype" = "haplos")) %>%
-  mutate(flag_prevalence = ifelse(proportion >= thresh_prevalence, "PASSED", NA)) %>%
+  mutate(flag_prevalence = ifelse(proportion >= thresh_pop_freq, "PASSED", NA)) %>%
   select(-proportion)%>%
   select(-Freq)
 
@@ -255,7 +255,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   # Barplot of counts
   p <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
     geom_bar(stat = "identity") +
-    labs(title = "Haplotype Counts", x = NULL, y = "Count") +
+    labs(title = "Haplotype Counts", x = NULL, y = "Samples") +
     theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
     guides(fill = "none")
   
@@ -263,7 +263,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   q <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
     geom_bar(stat = "identity", width = 1) +
     coord_polar(theta = "y") +
-    labs(title = "Proportion of Haplotypes", x = NULL) +
+    labs(title = "Haplotype Frequency", x = NULL) +
     scale_x_discrete(labels = NULL)
   
   grid_plot1 <- grid.arrange(p, q, ncol = 2)
@@ -281,7 +281,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   # Barplot of counts
   r <- ggplot(haplo_counts, aes(x = haplos, y = Freq, fill = haplos)) +
     geom_bar(stat = "identity") +
-    labs(title = "Haplotype Counts", x = NULL, y = "Count") +
+    labs(title = "Haplotype Counts", x = NULL, y = "Samples") +
     theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
     guides(fill = "none")
   
@@ -289,7 +289,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   s <- ggplot(haplo_counts, aes(x = "", y = proportion, fill = haplos)) +
     geom_bar(stat = "identity", width = 1) +
     coord_polar(theta = "y") +
-    labs(title = "Proportion of Haplotypes", x = NULL) +
+    labs(title = "Haplotype Frequencies", x = NULL) +
     scale_x_discrete(labels = NULL)
   
   grid_plot1_1 <- grid.arrange(r, s, ncol = 2)
@@ -302,7 +302,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
     
     plot <- ggplot(data = data.frame(Frequency = freq_vector)) +
       geom_histogram(aes(x = Frequency), bins = 10, fill = "cadetblue3", color = "cadetblue3") +
-      labs(title = haplo, x = "Frequency", y = "Count") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
+      labs(title = haplo, x = "Prevalence", y = "Samples") + coord_cartesian(xlim = c(0, 1))  # Set x-axis limits
     
     histogram_plots[[haplo]] <- plot
   }
@@ -312,7 +312,7 @@ generate_haplo_summary_plots <- function(RESULTS_FINAL, props_plot, props_plot_m
   # Haplo profile (barplot) multiallelic only
   a <- ggplot(RESULTS_FINAL_multiallelic, aes(x = SampleID, y = HAPLO_FREQ_RECALC, fill = haplotype)) +
     geom_bar(stat = "identity") +
-    labs(title = "Haplotype Frequencies", x = "SampleID", y = "Haplo Frequency") +
+    labs(title = "Haplotype Profiles", x = "SampleID", y = "Frequency") +
     theme(axis.text.x = element_text(angle = 65, hjust = 1) , legend.position = "top") +
     guides(fill = guide_legend(title = "Haplotype"))
   
@@ -363,7 +363,7 @@ df$Haplotypes <- reorder(df$Haplotypes, -df$Count)
 
 cooc <- ggplot(df, aes(x = Haplotypes, y = Count)) +
   geom_bar(stat = "identity") +
-  labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Counts (Samples)") +
-  theme(axis.text.x = element_text(angle = 65, hjust = 1))
+  labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Samples") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggsave(paste0(opt$output_prefix, "_haplo_combos_multiallelic_correct_only.png"), cooc, width = 12, height = 9)

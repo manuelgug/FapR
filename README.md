@@ -27,7 +27,7 @@ FapR uses an iterative approach on which haplotypes are accepted based on
 ### Flagging
 Phased haplotypes are flagged based on: 
 
-1. **Frequency in the sequencing run** (assuming it is from a given population): allows to catch haplotypes that are frequent in the run, but have a low abundance in particular samples. This flag takes precedent over the following.
+1. **Frequency in the sequencing run** (assuming it is from a given population): allows to catch haplotypes that are frequent in the run, but have a low abundance in particular samples. This flag takes precedence over the following.
 2. **Limit of detection of each amplicon** (experimentally tested): allows to catch haplotypes that are rare in the run, but moderate to highly abundant in particular samples. This also allows to build partial haplotypes.
 
 

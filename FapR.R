@@ -214,7 +214,7 @@ RESULTS_FINAL_FLAGGED <- RESULTS_FINAL %>%
 all_dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))] == "dubious") == length(RESULTS_FINAL_FLAGGED[, grepl("^flag_", names(RESULTS_FINAL_FLAGGED))])
 RESULTS_FINAL_FLAGGED <- RESULTS_FINAL_FLAGGED[!all_dubious_rows, ]
 
-#flag as PASSED if the haplotype is found to be correct in a certain amount of the multiallelic samples (thresh_preval)
+#flag as PASSED if the haplotype is found to be correct in a certain amount of the multiallelic samples (pop_freq_thresh)
 RESULTS_FINAL_FLAGGEDL_multiallelic <- RESULTS_FINAL_FLAGGED[RESULTS_FINAL_FLAGGED$HAPLO_FREQ_RECALC < 1, ]
 
 haplos <- paste(RESULTS_FINAL_FLAGGEDL_multiallelic$dhps_431, RESULTS_FINAL_FLAGGEDL_multiallelic$dhps_437, RESULTS_FINAL_FLAGGEDL_multiallelic$dhps_540, RESULTS_FINAL_FLAGGEDL_multiallelic$dhps_581, RESULTS_FINAL_FLAGGEDL_multiallelic$dhfr_51, RESULTS_FINAL_FLAGGEDL_multiallelic$dhfr_59, RESULTS_FINAL_FLAGGEDL_multiallelic$dhfr_108, sep = "_")
@@ -225,18 +225,18 @@ haplo_counts$proportion <- haplo_counts$Freq / sum(haplo_counts$Freq)
 
 thresh_pop_freq = mean(haplo_counts$proportion) # DECIDE ON HOW TO CALCUALTE THIS THRESHOLD!!!! MEAN IS JUST FOR TESTING PURPOSES
 
-#if haplo_counts$proportion => threshold_pop_freq, add RESULTS_FINAL_FLAGGED$flag_prevalence = "PASSED" whenever haplo_counts$haplo matches RESULTS_FINAL_FLAGGED$haplotype, else add NA
+#if haplo_counts$proportion => threshold_pop_freq, add RESULTS_FINAL_FLAGGED$flag_pop_freq = "PASSED" whenever haplo_counts$haplo matches RESULTS_FINAL_FLAGGED$haplotype, else add NA
 
 RESULTS_FINAL_FLAGGED <- RESULTS_FINAL_FLAGGED %>%
   left_join(haplo_counts, by = c("haplotype" = "haplos")) %>%
-  mutate(flag_prevalence = ifelse(proportion >= thresh_pop_freq, "PASSED", NA)) %>%
+  mutate(flag_pop_freq = ifelse(proportion >= thresh_pop_freq, "PASSED", NA)) %>%
   select(-proportion)%>%
   select(-Freq)
 
 write.csv(RESULTS_FINAL_FLAGGED, paste0(opt$output_prefix, "_phased_haplos.csv"), row.names =FALSE)
 
 #subset the dataframe to remove rows that have at least one "dubious" flag and no "PASSED" flag
-dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_d", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0 & is.na(RESULTS_FINAL_FLAGGED$flag_prevalence)
+dubious_rows <- rowSums(RESULTS_FINAL_FLAGGED[, grepl("^flag_d", names(RESULTS_FINAL_FLAGGED))] == "dubious") > 0 & is.na(RESULTS_FINAL_FLAGGED$flag_pop_freq)
 RESULTS_FINAL_FLAGGED_correct_only <- RESULTS_FINAL_FLAGGED[!dubious_rows, ]
 
 write.csv(RESULTS_FINAL_FLAGGED_correct_only, paste0(opt$output_prefix, "_phased_haplos_correct_only.csv"), row.names =FALSE)
@@ -366,6 +366,6 @@ df$Haplotypes <- reorder(df$Haplotypes, -df$Count)
 cooc <- ggplot(df, aes(x = Haplotypes, y = Count)) +
   geom_bar(stat = "identity") +
   labs(title = "Co-ocurring haplotypes", x = "Haplotype combos", y = "Samples") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 65, hjust = 1))
 
 ggsave(paste0(opt$output_prefix, "_haplo_combos_multiallelic_correct_only.png"), cooc, width = 12, height = 9)

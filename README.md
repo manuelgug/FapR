@@ -48,3 +48,8 @@ Phased haplotypes are flagged based on:
 ![flagging](https://github.com/manuelgug/FapR/blob/main/img/fapr_flagging.png)
 
 *Figure 3. FapR's flagging algorithm. Currently, population frequency threshold is the mean haplotype frequency.*
+
+![flagging_example](https://github.com/manuelgug/FapR/blob/main/img/fapr_flagging_example.png)
+
+*Figure 4. Example of the flagging results. Checkmarks are accepted haplotypes: green = correctly phased and also frequent in the population/run; blue = correctly phased, but rare in the population/run; purple = inconclusive phasing, but frequent in the population/run. Orange crosses are haplotpes with inconclusive phasing and rare in the population/run, thus being inconclusive haplpotypes.*
+

@@ -45,4 +45,6 @@ Phased haplotypes are flagged based on:
     + Allows to catch haplotypes that are rare in the run, but moderate to highly abundant in particular samples
     + Allows to build partial haplotypes
 
+![flagging](https://github.com/manuelgug/FapR/blob/main/img/fapr_flagging.png)
 
+*Figure 3. FapR's flagging algorithm. Currently, population frequency threshold is the mean haplotype frequency.*

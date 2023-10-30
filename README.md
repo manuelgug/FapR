@@ -19,7 +19,7 @@ Rscript FapR.R -i [resmarker_table_global_max_0_filtered.csv] -o [output_prefix]
 2. There are no copy number variants (CNV) on the amplicons.
 
 ### Phasing
-FapR uses an iterative approach on which haplotypes are accepted based on: 
+FapR uses an iterative approach in which haplotypes are accepted based on: 
 
 1. **Probability of occurring in a sample**: haplotypes built from highly abundant resmarkers are more likely to be true.
 2. **Variance on the resmarker frequencies**: haplotypes built from similarly abundant resmarkers are more likely to be true.
@@ -37,7 +37,7 @@ Phased haplotypes are flagged based on:
 
 1. **Frequency in the sequencing run** (assuming it is from a given population)
     + A single threshold derived from population frequency
-    + Allows to catch haplotypes that are frequent in the run, but have a low abundance in particular samples
+    + Allows to catch haplotypes that are frequent in the run, but have low abundance in particular samples
     + This flag takes precedence over the following
       
 2. **Limit of detection of each amplicon** (experimentally tested)
@@ -51,5 +51,5 @@ Phased haplotypes are flagged based on:
 
 ![flagging_example](https://github.com/manuelgug/FapR/blob/main/img/fapr_flagging_example.png)
 
-*Figure 4. Example of the flagging results. Checkmarks are accepted haplotypes: green = correctly phased and also frequent in the population/run; blue = correctly phased, but rare in the population/run; purple = inconclusive phasing, but frequent in the population/run. Orange crosses are haplotpes with inconclusive phasing and rare in the population/run, thus being inconclusive haplpotypes.*
+*Figure 4. Example of the flagging results. Checkmarks are accepted haplotypes: green = correctly phased and also frequent in the population/run; blue = correctly phased but rare in the population/run; purple = inconclusive phasing but frequent in the population/run. Orange crosses are haplotypes with inconclusive phasing and also rare (or absent) in the population/run, thus being inconclusive haplotypes.*
 

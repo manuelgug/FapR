@@ -25,9 +25,11 @@ FapR uses an iterative approach on which haplotypes are accepted based on:
 2. **Variance on the resmarker frequencies**: haplotypes built from similarly abundant resmarkers are more likely to be true.
 
 ![algo](https://github.com/manuelgug/FapR/blob/main/img/fapr_algo.png)
+
 *Figure 1. FapR's phasing algorithm.*
 
 ![example](https://github.com/manuelgug/FapR/blob/main/img/fapr_example.png)
+
 *Figure 2. Example of the phasing process. The best haplotype on each iteration (highest probability and lowest coefficient of variation) is highlighted in green and its assigned frequency in pink. Haplotypes with zero probability are highlighted in orange. This particular sample resulted in 3 haplotypes that add up to 99%.*
 
 ### Flagging

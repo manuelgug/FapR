@@ -25,6 +25,9 @@ resmarkers_table <- read.csv(opt$resmarkers_table)
 #subset relevant markers
 markers_to_phase <- c("dhfr_51", "dhfr_59", "dhfr_108", "dhps_431", "dhps_437", "dhps_540", "dhps_581")
 
+#create resmarker column
+resmarkers_table$resmarker <-  paste0(resmarkers_table$Gene, "_", resmarkers_table$CodonID)
+
 resmarkers_table <- resmarkers_table %>%
   filter(grepl(paste(markers_to_phase, collapse = "|"), resmarker))
 
@@ -36,10 +39,15 @@ resmarkers_table <- resmarkers_table %>%
 
 resmarkers_table <- as.data.frame(resmarkers_table)
 
+#if there is no norm.read.locus column, create it
+resmarkers_table<- resmarkers_table %>%
+  group_by(SampleID,Gene, CodonID, CodonStart) %>%
+  mutate(norm.reads.locus = Reads/sum(Reads)) %>%
+  mutate(n.alleles = n())
+
 resmarkers_table <- resmarkers_table[,c("SampleID", "resmarker", "AA", "norm.reads.locus")]
 
 #moire_output <- read.csv(opt$moire_output) #dhfr-dhps specific moire run
-
 
 ################## MAIN LOOP ################## 
 

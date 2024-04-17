@@ -2,6 +2,7 @@
 
 library(ggbeeswarm)
 library(ggplot2)
+library(dplyr)
 
 ############# GENERATE HAPLOTYPE PROPORTIONS
 
@@ -25,11 +26,11 @@ generate_numbers_summing_to_1 <- function(n) {
 RESULTS_BENCH_ALL <- data.frame()
 RESULTS_BENCH_ALL_FREQS <- list()
 
-for (n in c(2:5)){
+for (n in c(2:7)){
   
   n_haplos <- n
   
-  print(paste0("Looping through ", n))
+  print(paste0("Looping through ", n, " haplotypes"))
   
   for (i in 1:100) {
   
@@ -273,9 +274,9 @@ for (n in c(2:5)){
   n_exp <- length(expected)
   n_obs <- length(observed)
   
-  perc <- n_obs/n_exp
+  difference <- n_exp - n_obs
   
-  # Ensure both vectors are of the same length
+  # Ensure both vectors are of the same length by adding zeros
   max_len <- max(length(observed), length(expected))
   observed_padded <- c(observed, rep(0, max_len - length(observed)))
   expected_padded <- c(expected, rep(0, max_len - length(expected)))
@@ -286,11 +287,16 @@ for (n in c(2:5)){
   # Append the dataframe to the list
   RESULTS_BENCH_ALL_FREQS <- c(RESULTS_BENCH_ALL_FREQS, list(FREQS))
   
+  # Truncate both vectors to the minimum length (thus, calculate RMSE only for true positives)
+  min_len <- min(length(observed), length(expected))
+  observed_truncated <- observed[1:min_len]
+  expected_truncated <- expected[1:min_len]
+  
   # Calculate RMSE
-  rmse <- sqrt(mean((observed_padded - expected_padded)^2))
+  rmse <- sqrt(mean((observed_truncated - expected_truncated)^2))
   
   # Combine the RMSE, PERC, and freqs_list into a data frame
-  RESULTS_BENCH <- data.frame(RMSE = rmse, PERC = perc, n_haplos = paste0(n_haplos, "_haplos"))
+  RESULTS_BENCH <- data.frame(RMSE = rmse, PERC = difference, n_haplos = paste0(n_haplos, "_haplos"))
   RESULTS_BENCH_ALL <- rbind(RESULTS_BENCH_ALL, RESULTS_BENCH)
   }
 }
@@ -301,11 +307,51 @@ for (n in c(2:5)){
 
 #RESULTS_BENCH_ALL
 
-# Create a ggplot object
-ggplot(RESULTS_BENCH_ALL, aes(x = n_haplos, y = PERC, color = n_haplos)) +
-  geom_boxplot() +
-  #geom_quasirandom(alpha = 0.5, cex = 3)+
-  labs(title = "", x = "", y = "Accuracy")+
+
+stacked_input <- RESULTS_BENCH_ALL %>% 
+  group_by(n_haplos, PERC) %>%
+  summarize(counts = as.vector(table(PERC)))
+
+# Define a lookup table
+lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3"),
+                           acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
+                                   "extra_1_haplo", "extra_2_haplos", "extra_3_haplos"))
+
+# Merge the lookup table with stacked_input based on PERC
+stacked_input <- merge(stacked_input, lookup_table, by = "PERC", all.x = TRUE)
+
+stacked_input$acc <- factor(stacked_input$acc,
+                            levels = c("extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
+                                       "missing_3_haplos", "exact_haplos", "missing_1_haplo", "missing_2_haplos"))
+
+# Define custom colors
+custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange", 
+                   "missing_2_haplos" = "red2", "missing_3_haplos" = "black", 
+                   "extra_1_haplo" = "pink", "extra_2_haplos" = "violet", 
+                   "extra_3_haplos" = "purple")
+
+# Create the stacked barplot
+perc_plot <- ggplot(stacked_input, aes(x = n_haplos, y = counts, fill = acc)) +
+  geom_bar(stat = "identity") +
+  labs(title = "", x = "", y = "Accuracy") +
+  scale_fill_manual(values = custom_colors) +  # Set custom colors
   theme_minimal()
+
+perc_plot
+
+
+max_rmse <- max(RESULTS_BENCH_ALL$RMSE)
+
+rmse_plot <- ggplot(RESULTS_BENCH_ALL, aes(x = n_haplos, y = RMSE, color = n_haplos)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.5)+
+  labs(title = "", x = "", y = "RMSE for true positives") +
+  theme_minimal() +
+  ylim(0, max_rmse)+
+  guides(color = "none")
+
+rmse_plot
+
+## AHORA METER RUIDO!!!! 
 
 

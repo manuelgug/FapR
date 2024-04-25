@@ -3,6 +3,7 @@
 library(ggbeeswarm)
 library(ggplot2)
 library(dplyr)
+library(reshape2)
 
 ############# GENERATE HAPLOTYPE PROPORTIONS
 
@@ -303,7 +304,31 @@ for (n in c(2:7)){
 
 #RESULTS_BENCH_ALL_FREQS
 # Combine all dataframes in the list into a single dataframe
-#RESULTS_BENCH_ALL_FREQS <- do.call(rbind, RESULTS_BENCH_ALL_FREQS)
+#RESULTS_BENCH_ALL_FREQS_all <- do.call(rbind, RESULTS_BENCH_ALL_FREQS)
+
+# DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
+
+# Extract the "expected" values from the list
+expected_values <- lapply(RESULTS_BENCH_ALL_FREQS[201:300], function(x) x$expected[x$expected != 0])
+
+expected_values<- as.data.frame(do.call(rbind, expected_values))
+expected_values <- melt(t(expected_values))
+
+colnames(expected_values) <- c("Haplo", "Individual", "Freq")
+
+# Identify levels of Individual for Haplo == "V1" and sort them
+levels_v1 <- unique(expected_values$Individual[expected_values$Haplo == "V1"])
+levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"], decreasing = TRUE)]
+
+# Reorder levels of Individual based on Freq for Haplo == "V1"
+expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
+
+# Plot the data
+ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
+  geom_bar(position = "stack", stat = "identity") +
+  labs(x = "Individual", y = "Expected Frequency", title = "")+
+  guides(fill = FALSE)
+
 
 #RESULTS_BENCH_ALL
 
@@ -322,7 +347,7 @@ stacked_input <- merge(stacked_input, lookup_table, by = "PERC", all.x = TRUE)
 
 stacked_input$acc <- factor(stacked_input$acc,
                             levels = c("extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
-                                       "missing_3_haplos", "exact_haplos", "missing_1_haplo", "missing_2_haplos"))
+                                    "exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos"))
 
 # Define custom colors
 custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange", 
@@ -333,7 +358,7 @@ custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange",
 # Create the stacked barplot
 perc_plot <- ggplot(stacked_input, aes(x = n_haplos, y = counts, fill = acc)) +
   geom_bar(stat = "identity") +
-  labs(title = "", x = "", y = "Accuracy") +
+  labs(title = "", x = "", y = "Samples") +
   scale_fill_manual(values = custom_colors) +  # Set custom colors
   theme_minimal()
 

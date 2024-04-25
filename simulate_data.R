@@ -26,14 +26,16 @@ generate_numbers_summing_to_1 <- function(n) {
 
 RESULTS_BENCH_ALL <- data.frame()
 RESULTS_BENCH_ALL_FREQS <- list()
+max_haplos <- 7
+individuals <- 200
 
-for (n in c(2:7)){
+for (n in c(2:max_haplos)){
   
   n_haplos <- n
   
   print(paste0("Looping through ", n, " haplotypes"))
   
-  for (i in 1:100) {
+  for (i in 1:individuals) {
   
   proportions <- generate_numbers_summing_to_1(n_haplos)
   
@@ -302,54 +304,53 @@ for (n in c(2:7)){
   }
 }
 
+#checkpoint
+saveRDS(RESULTS_BENCH_ALL_FREQS, "RESULTS_BENCH_ALL_FREQS_no_noise.RDS")
+saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise.RDS")
+
 
 # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
 
-# Extract the "expected" values from the list
-expected_values <- lapply(RESULTS_BENCH_ALL_FREQS[501:600], function(x) x$expected[x$expected != 0])
-expected_values<- as.data.frame(do.call(rbind, expected_values))
+chunk_size <- individuals # Define the chunk size (it's the same as individuals simulated)
+num_chunks <- ceiling(length(RESULTS_BENCH_ALL_FREQS) / chunk_size)
 
-# Reshape the data to long format
-data_for_histogram_long <- reshape2::melt(expected_values)
-
-a <- ggplot(data_for_histogram_long, aes(x = value, color = variable)) +
-  geom_density(alpha = 0.5, linewidth=2) +
-  labs(x = "Expected Frequency", y = "Density", title = "Density Plot of Expected Values for Simulated Data") +
-  theme_minimal()+
-  guides(color = FALSE)
-
-
-# # Perform PCA
-# pca_result <- prcomp(expected_values)
-# pca_scores <- pca_result$x
-# pca_df <- as.data.frame(pca_scores)
-# 
-# var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2) * 100
-# 
-# ggplot(pca_df, aes(x = PC1, y = PC2)) +
-#   geom_point() +
-#   labs(x = paste0("PC1: ", round(var_explained[1], 2), "%"), y = paste0("PC2: ", round(var_explained[2],2), "%"), title = "PCA of Expected Values")
-# 
-
-
-#stacked barplot
-expected_values <- melt(t(expected_values))
-
-colnames(expected_values) <- c("Haplo", "Individual", "Freq")
-
-# Identify levels of Individual for Haplo == "V1" and sort them
-levels_v1 <- unique(expected_values$Individual[expected_values$Haplo == "V1"])
-levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"], decreasing = TRUE)]
-
-# Reorder levels of Individual based on Freq for Haplo == "V1"
-expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
-
-b <- ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
-  geom_bar(position = "stack", stat = "identity") +
-  labs(x = "Individual", y = "Expected Frequency", title = "")+
-  guides(fill = FALSE)
-
-grid.arrange(a, b, ncol = 2)
+# Loop through each chunk
+for (i in 1:num_chunks) {
+  start_index <- (i - 1) * chunk_size + 1
+  end_index <- min(i * chunk_size, length(RESULTS_BENCH_ALL_FREQS))
+  
+  chunk_data <- RESULTS_BENCH_ALL_FREQS[start_index:end_index]
+  
+  # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
+  expected_values <- lapply(chunk_data, function(x) x$expected[x$expected != 0])
+  expected_values <- as.data.frame(do.call(rbind, expected_values))
+  
+  data_for_histogram_long <- reshape2::melt(expected_values)
+  
+  a <- ggplot(data_for_histogram_long, aes(x = value, color = variable)) +
+    geom_density(alpha = 0.5, linewidth = 2) +
+    labs(x = "Expected Frequency", y = "Density", title = "Plots of Expected Values from Simulated Data") +
+    theme_minimal() +
+    guides(color = FALSE)
+  
+  expected_values <- melt(t(expected_values))
+  colnames(expected_values) <- c("Haplo", "Individual", "Freq")
+  
+  # Identify levels of Individual for Haplo == "V1" and sort them
+  levels_v1 <- unique(expected_values$Individual[expected_values$Haplo == "V1"])
+  levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"], decreasing = TRUE)]
+  
+  # Reorder levels of Individual based on Freq for Haplo == "V1"
+  expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
+  
+  b <- ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
+    geom_bar(position = "stack", stat = "identity") +
+    labs(x = "Individual", y = "Expected Frequency", title = "") +
+    #guides(fill = FALSE) +
+    theme(axis.text.x = element_blank())
+  
+  ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 2), dpi = 300, height= 10, width = 20)
+}
 
 
 
@@ -398,6 +399,7 @@ rmse_plot <- ggplot(RESULTS_BENCH_ALL, aes(x = n_haplos, y = RMSE, color = n_hap
   guides(color = "none")
 
 rmse_plot
+
 
 ## AHORA METER RUIDO!!!! 
 

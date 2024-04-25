@@ -1,5 +1,5 @@
 
-
+library(gridExtra)
 library(ggbeeswarm)
 library(ggplot2)
 library(dplyr)
@@ -302,16 +302,37 @@ for (n in c(2:7)){
   }
 }
 
-#RESULTS_BENCH_ALL_FREQS
-# Combine all dataframes in the list into a single dataframe
-#RESULTS_BENCH_ALL_FREQS_all <- do.call(rbind, RESULTS_BENCH_ALL_FREQS)
 
 # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
 
 # Extract the "expected" values from the list
-expected_values <- lapply(RESULTS_BENCH_ALL_FREQS[201:300], function(x) x$expected[x$expected != 0])
-
+expected_values <- lapply(RESULTS_BENCH_ALL_FREQS[501:600], function(x) x$expected[x$expected != 0])
 expected_values<- as.data.frame(do.call(rbind, expected_values))
+
+# Reshape the data to long format
+data_for_histogram_long <- reshape2::melt(expected_values)
+
+a <- ggplot(data_for_histogram_long, aes(x = value, color = variable)) +
+  geom_density(alpha = 0.5, linewidth=2) +
+  labs(x = "Expected Frequency", y = "Density", title = "Density Plot of Expected Values for Simulated Data") +
+  theme_minimal()+
+  guides(color = FALSE)
+
+
+# # Perform PCA
+# pca_result <- prcomp(expected_values)
+# pca_scores <- pca_result$x
+# pca_df <- as.data.frame(pca_scores)
+# 
+# var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2) * 100
+# 
+# ggplot(pca_df, aes(x = PC1, y = PC2)) +
+#   geom_point() +
+#   labs(x = paste0("PC1: ", round(var_explained[1], 2), "%"), y = paste0("PC2: ", round(var_explained[2],2), "%"), title = "PCA of Expected Values")
+# 
+
+
+#stacked barplot
 expected_values <- melt(t(expected_values))
 
 colnames(expected_values) <- c("Haplo", "Individual", "Freq")
@@ -323,15 +344,16 @@ levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"]
 # Reorder levels of Individual based on Freq for Haplo == "V1"
 expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
 
-# Plot the data
-ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
+b <- ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
   geom_bar(position = "stack", stat = "identity") +
   labs(x = "Individual", y = "Expected Frequency", title = "")+
   guides(fill = FALSE)
 
+grid.arrange(a, b, ncol = 2)
 
-#RESULTS_BENCH_ALL
 
+
+### BENCHMARK
 
 stacked_input <- RESULTS_BENCH_ALL %>% 
   group_by(n_haplos, PERC) %>%

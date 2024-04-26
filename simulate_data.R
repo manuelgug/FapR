@@ -309,10 +309,33 @@ saveRDS(RESULTS_BENCH_ALL_FREQS, "RESULTS_BENCH_ALL_FREQS_no_noise.RDS")
 saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise.RDS")
 
 
+######----------------------------------------------------------------------------------------
+
+
+# load checkpoint
+
+RESULTS_BENCH_ALL_FREQS <- readRDS("RESULTS_BENCH_ALL_FREQS_no_noise.RDS")
+RESULTS_BENCH_ALL <- readRDS("RESULTS_BENCH_ALL_no_noise.RDS")
+
+RESULTS_BENCH_ALL$Individual <- rownames(RESULTS_BENCH_ALL)
+
+# # Define a lookup table
+# lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3", "-4"),
+#                            acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
+#                                    "extra_1_haplo", "extra_2_haplos", "extra_3_haplos", "extra_4_haplos"))
+# 
+# RESULTS_BENCH_ALL <- merge(RESULTS_BENCH_ALL, lookup_table, by = "PERC", all.x = TRUE)
+
+
 # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
 
 chunk_size <- individuals # Define the chunk size (it's the same as individuals simulated)
 num_chunks <- ceiling(length(RESULTS_BENCH_ALL_FREQS) / chunk_size)
+
+#shannon diversity as "evennes" index
+shannon_diversity <- function(x) {
+  -sum(x * log(x))
+}
 
 # Loop through each chunk
 for (i in 1:num_chunks) {
@@ -320,6 +343,8 @@ for (i in 1:num_chunks) {
   end_index <- min(i * chunk_size, length(RESULTS_BENCH_ALL_FREQS))
   
   chunk_data <- RESULTS_BENCH_ALL_FREQS[start_index:end_index]
+  
+  names(chunk_data)<- c(start_index:end_index)
   
   # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
   expected_values <- lapply(chunk_data, function(x) x$expected[x$expected != 0])
@@ -336,20 +361,40 @@ for (i in 1:num_chunks) {
   expected_values <- melt(t(expected_values))
   colnames(expected_values) <- c("Haplo", "Individual", "Freq")
   
+  # Merge the two data frames by Individual column
+  expected_values <- merge(RESULTS_BENCH_ALL, expected_values, by = c("Individual"), all.y = TRUE)
+
   # Identify levels of Individual for Haplo == "V1" and sort them
   levels_v1 <- unique(expected_values$Individual[expected_values$Haplo == "V1"])
-  levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"], decreasing = TRUE)]
-  
+  levels_v1 <- levels_v1[order(expected_values$Freq[expected_values$Haplo == "V1"], decreasing = FALSE)]
+
   # Reorder levels of Individual based on Freq for Haplo == "V1"
   expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
   
-  b <- ggplot(expected_values, aes(fill = Haplo, y = Freq, x = Individual)) +
-    geom_bar(position = "stack", stat = "identity") +
-    labs(x = "Individual", y = "Expected Frequency", title = "") +
-    #guides(fill = FALSE) +
-    theme(axis.text.x = element_blank())
+  ordered_individual <- expected_values %>%
+    group_by(Individual) %>%
+    summarise(shannon = shannon_diversity(Freq)) %>%
+    arrange(shannon) %>%
+    pull(Individual)
   
-  ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 2), dpi = 300, height= 10, width = 20)
+  # Convert to factor with levels in the order they appear
+  ordered_individual <- factor(ordered_individual, levels = unique(expected_values$Individual))
+  
+  expected_values$Individual <- factor(expected_values$Individual, levels = ordered_individual)
+  
+  # b <- ggplot(expected_values, aes(fill = as.factor(Haplo), y = Freq, x = Individual)) +
+  #   geom_bar(position = "stack", stat = "identity") +
+  #   labs(x = "Individual", y = "Expected Frequency", title = "") +
+  #   #guides(fill = FALSE) +
+  #   theme(axis.text.x = element_blank())
+  
+  b <- ggplot(expected_values, aes(fill = as.factor(-PERC), y = Freq, x = Individual)) +
+    geom_bar(position = "stack", stat = "identity", color = "black") +
+    labs(x = "Individual", y = "Expected Frequency", title = "") +
+    scale_fill_discrete(name = "Extra haplotypes")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7))
+  
+  ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 1, nrow=2), dpi = 300, height= 30, width = 30)
 }
 
 
@@ -361,22 +406,22 @@ stacked_input <- RESULTS_BENCH_ALL %>%
   summarize(counts = as.vector(table(PERC)))
 
 # Define a lookup table
-lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3"),
+lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3", "-4"),
                            acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
-                                   "extra_1_haplo", "extra_2_haplos", "extra_3_haplos"))
+                                   "extra_1_haplo", "extra_2_haplos", "extra_3_haplos", "extra_4_haplos"))
 
 # Merge the lookup table with stacked_input based on PERC
 stacked_input <- merge(stacked_input, lookup_table, by = "PERC", all.x = TRUE)
 
 stacked_input$acc <- factor(stacked_input$acc,
-                            levels = c("extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
+                            levels = c("extra_4_haplos", "extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
                                     "exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos"))
 
 # Define custom colors
 custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange", 
                    "missing_2_haplos" = "red2", "missing_3_haplos" = "black", 
                    "extra_1_haplo" = "pink", "extra_2_haplos" = "violet", 
-                   "extra_3_haplos" = "purple")
+                   "extra_3_haplos" = "purple", "extra_4_haplos" = "blue")
 
 # Create the stacked barplot
 perc_plot <- ggplot(stacked_input, aes(x = n_haplos, y = counts, fill = acc)) +

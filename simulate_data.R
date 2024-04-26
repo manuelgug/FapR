@@ -398,54 +398,57 @@ for (i in 1:num_chunks) {
 }
 
 
+# BENCHMARK PLOTS YOOO
 
-### BENCHMARK
+create_benchmark_plots <- function(RESULTS_BENCH_ALL, bench_name = "") {
+  # Calculate stacked input
+  stacked_input <- RESULTS_BENCH_ALL %>% 
+    group_by(n_haplos, PERC) %>%
+    summarize(counts = as.vector(table(PERC)))
+  
+  # Define a lookup table
+  lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3", "-4"),
+                             acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
+                                     "extra_1_haplo", "extra_2_haplos", "extra_3_haplos", "extra_4_haplos"))
+  
+  # Merge the lookup table with stacked_input based on PERC
+  stacked_input <- merge(stacked_input, lookup_table, by = "PERC", all.x = TRUE)
+  
+  stacked_input$acc <- factor(stacked_input$acc,
+                              levels = c("extra_4_haplos", "extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
+                                         "exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos"))
+  
+  # Define custom colors
+  custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange", 
+                     "missing_2_haplos" = "red2", "missing_3_haplos" = "black", 
+                     "extra_1_haplo" = "pink", "extra_2_haplos" = "violet", 
+                     "extra_3_haplos" = "purple", "extra_4_haplos" = "blue")
+  
+  # Create the stacked barplot
+  perc_plot <- ggplot(stacked_input, aes(x = n_haplos, y = counts, fill = acc)) +
+    geom_bar(stat = "identity") +
+    labs(title = "", x = "", y = "Samples") +
+    scale_fill_manual(values = custom_colors) +  # Set custom colors
+    theme_minimal()
+  
+  ggsave(paste0(bench_name,"__haplo_discovery_benchmark.png"), perc_plot, bg = "white", height = 6, width = 10)
+  
+  
+  max_rmse <- max(RESULTS_BENCH_ALL$RMSE)
+  
+  rmse_plot <- ggplot(RESULTS_BENCH_ALL, aes(x = n_haplos, y = RMSE, color = n_haplos)) +
+    geom_boxplot() +
+    geom_quasirandom(alpha = 0.5)+
+    labs(title = "", x = "", y = "RMSE for true positives") +
+    theme_minimal() +
+    ylim(0, max_rmse)+
+    guides(color = "none")
+  
+  ggsave(paste0(bench_name,"__haplo_freqs_benchmark.png"), rmse_plot, bg = "white", height = 6, width = 10)
+}
 
-stacked_input <- RESULTS_BENCH_ALL %>% 
-  group_by(n_haplos, PERC) %>%
-  summarize(counts = as.vector(table(PERC)))
 
-# Define a lookup table
-lookup_table <- data.frame(PERC = c("0", "1", "2", "3", "-1", "-2", "-3", "-4"),
-                           acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
-                                   "extra_1_haplo", "extra_2_haplos", "extra_3_haplos", "extra_4_haplos"))
-
-# Merge the lookup table with stacked_input based on PERC
-stacked_input <- merge(stacked_input, lookup_table, by = "PERC", all.x = TRUE)
-
-stacked_input$acc <- factor(stacked_input$acc,
-                            levels = c("extra_4_haplos", "extra_3_haplos", "extra_2_haplos", "extra_1_haplo",
-                                    "exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos"))
-
-# Define custom colors
-custom_colors <- c("exact_haplos" = "limegreen", "missing_1_haplo" = "orange", 
-                   "missing_2_haplos" = "red2", "missing_3_haplos" = "black", 
-                   "extra_1_haplo" = "pink", "extra_2_haplos" = "violet", 
-                   "extra_3_haplos" = "purple", "extra_4_haplos" = "blue")
-
-# Create the stacked barplot
-perc_plot <- ggplot(stacked_input, aes(x = n_haplos, y = counts, fill = acc)) +
-  geom_bar(stat = "identity") +
-  labs(title = "", x = "", y = "Samples") +
-  scale_fill_manual(values = custom_colors) +  # Set custom colors
-  theme_minimal()
-
-perc_plot
-
-
-max_rmse <- max(RESULTS_BENCH_ALL$RMSE)
-
-rmse_plot <- ggplot(RESULTS_BENCH_ALL, aes(x = n_haplos, y = RMSE, color = n_haplos)) +
-  geom_boxplot() +
-  geom_quasirandom(alpha = 0.5)+
-  labs(title = "", x = "", y = "RMSE for true positives") +
-  theme_minimal() +
-  ylim(0, max_rmse)+
-  guides(color = "none")
-
-rmse_plot
+create_benchmark_plots(RESULTS_BENCH_ALL, "clean_data")
 
 
 ## AHORA METER RUIDO!!!! 
-
-

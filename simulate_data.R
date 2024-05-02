@@ -26,8 +26,8 @@ generate_numbers_summing_to_1 <- function(n) {
 
 RESULTS_BENCH_ALL <- data.frame()
 RESULTS_BENCH_ALL_FREQS <- list()
-max_haplos <- 7
-individuals <- 200
+max_haplos <- 5
+individuals <- 500
 
 for (n in c(2:max_haplos)){
   
@@ -305,8 +305,8 @@ for (n in c(2:max_haplos)){
 }
 
 #checkpoint
-saveRDS(RESULTS_BENCH_ALL_FREQS, "RESULTS_BENCH_ALL_FREQS_no_noise.RDS")
-saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise.RDS")
+saveRDS(RESULTS_BENCH_ALL_FREQS, "RESULTS_BENCH_ALL_FREQS_no_noise_500i_5haps.RDS")
+saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise_500i_5haps.RDS")
 
 
 ######----------------------------------------------------------------------------------------
@@ -314,8 +314,8 @@ saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise.RDS")
 
 # load checkpoint
 
-RESULTS_BENCH_ALL_FREQS <- readRDS("RESULTS_BENCH_ALL_FREQS_no_noise.RDS")
-RESULTS_BENCH_ALL <- readRDS("RESULTS_BENCH_ALL_no_noise.RDS")
+RESULTS_BENCH_ALL_FREQS <- readRDS("RESULTS_BENCH_ALL_FREQS_no_noise_500i_5haps.RDS")
+RESULTS_BENCH_ALL <- readRDS("RESULTS_BENCH_ALL_no_noise_500i_5haps.RDS")
 
 RESULTS_BENCH_ALL$Individual <- rownames(RESULTS_BENCH_ALL)
 
@@ -332,10 +332,10 @@ RESULTS_BENCH_ALL$Individual <- rownames(RESULTS_BENCH_ALL)
 chunk_size <- individuals # Define the chunk size (it's the same as individuals simulated)
 num_chunks <- ceiling(length(RESULTS_BENCH_ALL_FREQS) / chunk_size)
 
-#shannon diversity as "evennes" index
-shannon_diversity <- function(x) {
-  -sum(x * log(x))
-}
+# #shannon diversity as "evennes" index
+# shannon_diversity <- function(x) {
+#   -sum(x * log(x))
+# }
 
 # Loop through each chunk
 for (i in 1:num_chunks) {
@@ -356,7 +356,11 @@ for (i in 1:num_chunks) {
     geom_density(alpha = 0.5, linewidth = 2) +
     labs(x = "Expected Frequency", y = "Density", title = "Plots of Expected Values from Simulated Data") +
     theme_minimal() +
-    guides(color = FALSE)
+    guides(color = FALSE)+
+    theme(axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.5, size = 14),
+          axis.text.y = element_text(size = 20),
+          axis.title = element_text(size = 20),
+          legend.text = element_text(size = 20))
   
   expected_values <- melt(t(expected_values))
   colnames(expected_values) <- c("Haplo", "Individual", "Freq")
@@ -404,7 +408,10 @@ for (i in 1:num_chunks) {
     geom_bar(position = "stack", stat = "identity", color = "black") +
     labs(x = "Individual", y = "Expected Frequency", title = "") +
     scale_fill_discrete(name = "Extra haplotypes")+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7))
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7),
+          axis.text.y = element_text(size = 20),
+          axis.title = element_text(size = 20),
+          legend.text = element_text(size = 20))
   
   ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 1, nrow=2), dpi = 300, height= 30, width = 30)
 }

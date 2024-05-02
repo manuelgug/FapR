@@ -371,11 +371,23 @@ for (i in 1:num_chunks) {
   # Reorder levels of Individual based on Freq for Haplo == "V1"
   expected_values$Individual <- factor(expected_values$Individual, levels = levels_v1)
   
-  ordered_individual <- expected_values %>%
+  #shannon reorder
+  # ordered_individual <- expected_values %>%
+  #   group_by(Individual) %>%
+  #   summarise(shannon = shannon_diversity(Freq)) %>%
+  #   arrange(shannon) %>%
+  #   pull(Individual)
+  
+  #min haplo freq reorder
+  # Calculate the minimum Freq for each Individual
+  min_freq <- expected_values %>%
     group_by(Individual) %>%
-    summarise(shannon = shannon_diversity(Freq)) %>%
-    arrange(shannon) %>%
+    summarise(min_freq = min(Freq))
+  
+  ordered_individual <- min_freq %>%
+    arrange(min_freq) %>%
     pull(Individual)
+  
   
   # Convert to factor with levels in the order they appear
   ordered_individual <- factor(ordered_individual, levels = unique(expected_values$Individual))

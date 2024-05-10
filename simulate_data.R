@@ -32,7 +32,7 @@ generate_numbers_summing_to_1 <- function(n) {
 ##### GENERATE DATA
 
 max_haplos <- 5
-individuals <- 500
+individuals <- 1000
 
 SIM_DATA <- list()
 
@@ -128,14 +128,69 @@ for (n in c(2:max_haplos)){
 #convert to a single df
 SIM_DATA <- bind_rows(SIM_DATA)
 
-saveRDS(SIM_DATA, "SIM_DATA_5haps_500i.RDS")
+saveRDS(SIM_DATA, paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
+######----------------------------------------------------------------------------------------
+
+### ADD NOISE TO SIMULATED DATA
+
+# adding noise means that freqs for each resmarker vary a bit; for instance, it may not be 55-45 for all in a 2 haps sample, but rather dhfr_59: 57-43, dhfr_437: 50-50, dhps_540: 52-48
+# This will increase the errors. How will FAPR perform?
+
+SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
+# Function to introduce noise to norm.reads.locus values
+introduce_noise <- function(data, max_change = 0.1) {
+
+  multi_aa_data <- data %>%
+    group_by(SampleID, resmarker) %>%
+    filter(n_distinct(AA) > 1) %>%
+    ungroup() %>%
+    mutate(
+      # Generate random factors to multiply the norm.reads.locus values
+      random_factor = runif(n(), 1 - max_change, 1 + max_change),
+      # Normalize the factors so that they sum up to 1
+      random_factor = random_factor / sum(random_factor),
+      # Update the norm.reads.locus values by multiplying them with the random factors
+      norm.reads.locus = norm.reads.locus * random_factor
+    ) %>%
+    # Group by SampleID and resmarker again to calculate the sum of norm.reads.locus
+    group_by(SampleID, resmarker) %>%
+    mutate(sum_norm_reads = sum(norm.reads.locus)) %>%
+    ungroup() %>%
+    mutate(      norm.reads.locus = norm.reads.locus / sum_norm_reads) %>% # Adjust the norm.reads.locus values to ensure they sum up to 1
+    select(-sum_norm_reads)
+  
+  # Filter rows where there is only one AA and combine with the noisy data
+  noisy_data <- bind_rows(
+    data %>% group_by(SampleID, resmarker) %>% filter(n_distinct(AA) == 1),
+    multi_aa_data
+  )
+  
+  noisy_data <- noisy_data[,-5]
+  
+  return(noisy_data)
+}
+
+# Apply the introduce_noise function to SIM_DATA
+noisy_SIM_DATA <- introduce_noise(SIM_DATA)
+
+# Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
+indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
+                 apply(noisy_SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
+
+# Order noisy_SIM_DATA according to the indices
+noisy_SIM_DATA_ordered <- noisy_SIM_DATA[indices, ]
+
+
+saveRDS(SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------
 
 ##### PHASING WITH FAPR
 
-SIM_DATA <- readRDS("SIM_DATA_5haps_500i.RDS")
+SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 unique_samples <- unique(SIM_DATA$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -344,8 +399,8 @@ for (sample in unique_samples){
 
 
 #checkpoint
-saveRDS(RESULTS_BENCH_ALL_FREQS, "RESULTS_BENCH_ALL_FREQS_no_noise_500i_5haps.RDS")
-saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise_500i_5haps.RDS")
+saveRDS(RESULTS_BENCH_ALL_FREQS,  paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+saveRDS(RESULTS_BENCH_ALL, paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------
@@ -353,8 +408,8 @@ saveRDS(RESULTS_BENCH_ALL, "RESULTS_BENCH_ALL_no_noise_500i_5haps.RDS")
 
 #### VISUALIZATION
 
-RESULTS_BENCH_ALL_FREQS <- readRDS("RESULTS_BENCH_ALL_FREQS_no_noise_500i_5haps.RDS")
-RESULTS_BENCH_ALL <- readRDS("RESULTS_BENCH_ALL_no_noise_500i_5haps.RDS")
+RESULTS_BENCH_ALL_FREQS <- readRDS(paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+RESULTS_BENCH_ALL <- readRDS(paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 RESULTS_BENCH_ALL$Individual <- rownames(RESULTS_BENCH_ALL)
@@ -453,7 +508,7 @@ for (i in 1:num_chunks) {
           axis.title = element_text(size = 20),
           legend.text = element_text(size = 20))
   
-  ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 1, nrow=2), dpi = 300, height= 30, width = 30)
+  ggsave(paste0("haplos_", i+1, "_plots.png"), arrangeGrob(a, b, ncol = 1, nrow=2), dpi = 300, height= 30, width = 40)
 }
 
 

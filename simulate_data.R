@@ -140,15 +140,17 @@ saveRDS(SIM_DATA, paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals
 SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 # Function to introduce noise to norm.reads.locus values
-introduce_noise <- function(data, max_change = 0.1) {
-
+introduce_noise <- function(data, max_change = 0.1, min_change = 0.01) {
+  
+  # Group data by SampleID and resmarker
   multi_aa_data <- data %>%
     group_by(SampleID, resmarker) %>%
+    # Filter for rows with more than one AA
     filter(n_distinct(AA) > 1) %>%
     ungroup() %>%
     mutate(
       # Generate random factors to multiply the norm.reads.locus values
-      random_factor = runif(n(), 1 - max_change, 1 + max_change),
+      random_factor = runif(n(), max(min_change, 1 - max_change), 1 + max_change),
       # Normalize the factors so that they sum up to 1
       random_factor = random_factor / sum(random_factor),
       # Update the norm.reads.locus values by multiplying them with the random factors
@@ -158,7 +160,8 @@ introduce_noise <- function(data, max_change = 0.1) {
     group_by(SampleID, resmarker) %>%
     mutate(sum_norm_reads = sum(norm.reads.locus)) %>%
     ungroup() %>%
-    mutate(      norm.reads.locus = norm.reads.locus / sum_norm_reads) %>% # Adjust the norm.reads.locus values to ensure they sum up to 1
+    # Adjust the norm.reads.locus values to ensure they sum up to 1
+    mutate(norm.reads.locus = norm.reads.locus / sum_norm_reads) %>%
     select(-sum_norm_reads)
   
   # Filter rows where there is only one AA and combine with the noisy data
@@ -167,11 +170,11 @@ introduce_noise <- function(data, max_change = 0.1) {
     multi_aa_data
   )
   
+  # Remove the random_factor column
   noisy_data <- noisy_data[,-5]
   
   return(noisy_data)
 }
-
 # Apply the introduce_noise function to SIM_DATA
 noisy_SIM_DATA <- introduce_noise(SIM_DATA)
 
@@ -180,10 +183,10 @@ indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, col
                  apply(noisy_SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
 
 # Order noisy_SIM_DATA according to the indices
-noisy_SIM_DATA_ordered <- noisy_SIM_DATA[indices, ]
+noisy_SIM_DATA <- noisy_SIM_DATA[indices, ]
 
 
-saveRDS(SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+saveRDS(noisy_SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------

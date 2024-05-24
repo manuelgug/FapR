@@ -575,3 +575,8 @@ create_benchmark_plots(RESULTS_BENCH_ALL, "clean_data")
 
 
 
+####  COMPARING FAPR RESULTS WITH CLEAN AND NOISY DATA
+clean <- readRDS("FAPR_RESULTS_FINALclean_haps_5_ind_1000.RDS") # 
+noisy <- readRDS("FAPR_RESULTS_FINALnoisy_haps_5_ind_1000.RDS") # 
+
+m <- merge(clean[c("SampleID", "haplotype", "HAPLO_FREQ_RECALC")], noisy[c("SampleID", "haplotype", "HAPLO_FREQ_RECALC")], by= c("SampleID", "haplotype"), all = T)

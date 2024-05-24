@@ -193,7 +193,7 @@ saveRDS(noisy_SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_",
 
 ##### PHASING WITH FAPR
 
-SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 unique_samples <- unique(SIM_DATA$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -337,9 +337,14 @@ RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437,
 #RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
 
 
+saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
+
 ######----------------------------------------------------------------------------------------
 
-############# EVALUATION
+############# EVALUATION OF noisy o clean data aquí  (PROBLEAMS CON NOISY. CLEAN FUNCIONA. CHECAR)
+
+SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS")) # 
 
 unique_samples <- unique(SIM_DATA$SampleID)
 

@@ -90,6 +90,61 @@ for (sample in unique_samples){
     rownames(df) <- NULL
     resulting_dataframes[[resmarker]] <- df
   }
+
+  ####### RESULTING_DATAFRAMES.CORRECT ABUNDANCES!!! @@@@@@@
+
+  # Function to order each data frame by norm.reads.locus in descending order
+  order_by_norm_reads <- function(df) {
+    df[order(-df$norm.reads.locus), ]
+  }
+
+  # Apply the ordering function to each data frame in the list
+  resulting_dataframes <- lapply(resulting_dataframes, order_by_norm_reads)
+
+  # n of alleles per amplicon
+  n_alleles_amps <- sapply(resulting_dataframes, nrow)
+
+  # Function to get the mean of norm.reads.locus for each row position within a group
+  adjust_by_allele_count <- function(df_list) {
+    # Find the maximum number of rows in the data frames
+    max_rows <- max(sapply(df_list, nrow))
+
+    # Initialize a matrix to store the means
+    mean_matrix <- matrix(NA, nrow = max_rows, ncol = length(df_list))
+
+    # Fill the matrix with norm.reads.locus values, padding with NA if necessary
+    for (i in seq_along(df_list)) {
+      norm_reads <- df_list[[i]]$norm.reads.locus
+      mean_matrix[1:length(norm_reads), i] <- norm_reads
+    }
+
+    # Calculate the row means, ignoring NA values
+    row_means <- rowMeans(mean_matrix, na.rm = TRUE)
+
+    # Replace norm.reads.locus in each data frame with the calculated row means
+    adjusted_dfs <- lapply(df_list, function(df) {
+      df$norm.reads.locus <- row_means[1:nrow(df)]
+      return(df)
+    })
+
+    return(adjusted_dfs)
+  }
+
+  # Split data frames by the number of alleles
+  allele_group_list <- split(resulting_dataframes, n_alleles_amps)
+
+  # Apply the adjustment function to each group in the allele_group_list
+  adjusted_allele_groups <- lapply(allele_group_list, adjust_by_allele_count)
+
+  # Combine the adjusted data frames back into a single list
+  resulting_dataframes <- do.call(c, adjusted_allele_groups)
+
+  #rename elements of the list with amp names
+  names(resulting_dataframes) <- sapply(resulting_dataframes, function(df) colnames(df)[[1]])
+                                        
+  ########################################################3
+  
+
   
   alleles<-list(resulting_dataframes$dhps_431$dhps_431,
                 resulting_dataframes$dhps_437$dhps_437, 

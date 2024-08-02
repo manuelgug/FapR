@@ -35,6 +35,7 @@ resmarkers_table <- resmarkers_table %>%
 resmarkers_table <- resmarkers_table %>%
   group_by(SampleID, resmarker, AA) %>%
   filter(Reads == max(Reads)) %>%
+  slice(1) %>% 
   ungroup()
 
 resmarkers_table <- as.data.frame(resmarkers_table)

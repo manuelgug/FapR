@@ -129,7 +129,7 @@ for (n in c(2:max_haplos)){
 #convert to a single df
 SIM_DATA <- bind_rows(SIM_DATA)
 
-saveRDS(SIM_DATA, paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+saveRDS(SIM_DATA, paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 ######----------------------------------------------------------------------------------------
 
@@ -138,7 +138,7 @@ saveRDS(SIM_DATA, paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals
 # adding noise means that freqs for each resmarker vary a bit; for instance, it may not be 55-45 for all in a 2 haps sample, but rather dhfr_59: 57-43, dhfr_437: 50-50, dhps_540: 52-48
 # This will increase the errors. How will FAPR perform?
 
-SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+SIM_DATA_noisy <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 # Function to introduce noise to norm.reads.locus values
 introduce_noise <- function(data, max_change = 0, min_change = 0) {
@@ -179,30 +179,28 @@ introduce_noise <- function(data, max_change = 0, min_change = 0) {
 
 
 # Apply the introduce_noise function to SIM_DATA
-max_change = 0.2
-min_change = 0.1
+max_change = 0.1
+min_change = 0.05
 
-noisy_SIM_DATA <- introduce_noise(SIM_DATA, max_change = max_change, min_change = min_change)
+SIM_DATA_noisy <- introduce_noise(SIM_DATA_noisy, max_change = max_change, min_change = min_change)
 
 # Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
 indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
-                 apply(noisy_SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
+                 apply(SIM_DATA_noisy[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
 
 # Order noisy_SIM_DATA according to the indices
-noisy_SIM_DATA <- noisy_SIM_DATA[indices, ]
+SIM_DATA_noisy <- SIM_DATA_noisy[indices, ]
 
-#i'm lazy
-SIM_DATA <- noisy_SIM_DATA
+saveRDS(SIM_DATA_noisy, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
-#saveRDS(noisy_SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-
+#so up until here i have clean and noisy data. phasing for clean data is gonna come out perfect, i'll evaluate the noisy data using the clean results.
 
 ######----------------------------------------------------------------------------------------
 
 ##### PHASING WITH FAPR
 
-#SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+SIM_DATA <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 unique_samples <- unique(SIM_DATA$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -210,7 +208,7 @@ RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dh
 
 for (sample in unique_samples){
   
-  #sample <-unique_samples[1]
+  #sample <-unique_samples[101]
   
   i_counter <- 0
   MOST_LIKELY_HAPLOS <- data.frame()
@@ -332,7 +330,7 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || 1-sum(RESULTS$HAPLO_FREQ) > 0.01) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || 1-sum(RESULTS$HAPLO_FREQ) > 0.0106) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
       
       i_counter <- i_counter + 1
       
@@ -343,7 +341,7 @@ for (sample in unique_samples){
       #comb_freqs_matrix <- subset(comb_freqs_matrix, probs != 0)
       
       # Calculate SD and CV
-      comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix, na.rm = TRUE)
+      comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix[, 1:7], na.rm = TRUE)
       comb_freqs_matrix$SD <- apply(comb_freqs_matrix[, 1:7], 1, sd)
       comb_freqs_matrix$CV <- (comb_freqs_matrix$SD / comb_freqs_matrix$freq_mean)
       
@@ -351,15 +349,15 @@ for (sample in unique_samples){
       lowest_CV <- which.min(comb_freqs_matrix$CV)
       highest_prob <- as.numeric(which.max(comb_freqs_matrix$probs))
       
-      # #do CV and probs agree with each other?
-      # if (lowest_CV == highest_prob) {
-      #   most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-      #   print(paste(sample, "#", i_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
-      # } else {
-      #   most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-      #   most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
-      #   print(paste(sample, "#", i_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
-      # }
+      #do CV and probs agree with each other?
+      if (lowest_CV == highest_prob) {
+        most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
+        print(paste(sample, "#", i_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
+      } else {
+        most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
+        most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
+        print(paste(sample, "#", i_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
+      }
       
       # Append most likely haplo
       MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
@@ -453,12 +451,9 @@ for (sample in unique_samples){
   }else{ # if the sample is polyallelic for multiple loci, average freq is needed
     
     expected <- rollapply(rev(sort(SIM_DATA_subset$norm.reads.locus)), width = 1, by = by_, FUN = mean, align = "left", partial = TRUE)
-    
-    expected
+
   }
 
-
-  
   n_exp <- length(expected)
   n_obs <- length(observed)
   
@@ -646,5 +641,5 @@ create_benchmark_plots <- function(RESULTS_BENCH_ALL, bench_name = "") {
 }
 
 
-create_benchmark_plots(RESULTS_BENCH_ALL, "noisy_data")
+create_benchmark_plots(RESULTS_BENCH_ALL, "testing")
 

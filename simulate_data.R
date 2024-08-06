@@ -179,8 +179,8 @@ introduce_noise <- function(data, max_change = 0, min_change = 0) {
 
 
 # Apply the introduce_noise function to SIM_DATA
-max_change = 0.1
-min_change = 0.05
+max_change = 0.2
+min_change = 0.1
 
 noisy_SIM_DATA <- introduce_noise(SIM_DATA, max_change = max_change, min_change = min_change)
 

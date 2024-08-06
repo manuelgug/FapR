@@ -4,6 +4,7 @@ library(ggbeeswarm)
 library(ggplot2)
 library(dplyr)
 library(reshape2)
+library(zoo)
 
 
 ######----------------------------------------------------------------------------------------
@@ -140,7 +141,7 @@ saveRDS(SIM_DATA, paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals
 SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 # Function to introduce noise to norm.reads.locus values
-introduce_noise <- function(data, max_change = 0.1, min_change = 0.01) {
+introduce_noise <- function(data, max_change = 0, min_change = 0) {
   
   # Group data by SampleID and resmarker
   multi_aa_data <- data %>%
@@ -171,12 +172,17 @@ introduce_noise <- function(data, max_change = 0.1, min_change = 0.01) {
   )
   
   # Remove the random_factor column
-  noisy_data <- noisy_data[,-5]
+  noisy_data <- as.data.frame(noisy_data[,-5])
   
   return(noisy_data)
 }
+
+
 # Apply the introduce_noise function to SIM_DATA
-noisy_SIM_DATA <- introduce_noise(SIM_DATA)
+max_change = 0.1
+min_change = 0.05
+
+noisy_SIM_DATA <- introduce_noise(SIM_DATA, max_change = max_change, min_change = min_change)
 
 # Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
 indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
@@ -185,15 +191,18 @@ indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, col
 # Order noisy_SIM_DATA according to the indices
 noisy_SIM_DATA <- noisy_SIM_DATA[indices, ]
 
+#i'm lazy
+SIM_DATA <- noisy_SIM_DATA
 
-saveRDS(noisy_SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
+#saveRDS(noisy_SIM_DATA, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------
 
 ##### PHASING WITH FAPR
 
-SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+#SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 unique_samples <- unique(SIM_DATA$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -393,16 +402,18 @@ RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437,
 #RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
 
 
-saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+#saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------
 
 ############# EVALUATION OF noisy o clean data aquí  (PROBLEAMS CON NOISY. CLEAN FUNCIONA. CHECAR)
+# 
+# SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS")) # 
 
-SIM_DATA <- readRDS(paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, ".RDS")) # 
+#SIM_DATA <- as.data.frame(SIM_DATA)
 
-unique_samples <- unique(SIM_DATA$SampleID)
+#unique_samples <- unique(SIM_DATA$SampleID)
 
 RESULTS_BENCH_ALL <- data.frame()
 RESULTS_BENCH_ALL_FREQS <- list()
@@ -410,7 +421,7 @@ RESULTS_BENCH_ALL_FREQS <- list()
 for (sample in unique_samples){
   
   SIM_DATA_subset <- SIM_DATA[SIM_DATA$SampleID == sample,]
-  SIM_DATA_subset <- SIM_DATA_subset[SIM_DATA_subset$norm.reads.locus != 1,]
+  SIM_DATA_subset <- SIM_DATA_subset[SIM_DATA_subset$norm.reads.locus != 1,] #remove monoallelic loci
   
   # Count the number of unique AA values for each resmarker
   resmarker_counts <- SIM_DATA_subset %>%
@@ -429,8 +440,24 @@ for (sample in unique_samples){
   RESULTS_FINAL_subet <- RESULTS_FINAL[RESULTS_FINAL$SampleID == sample,]
   
   # Extract observed and expected values
-  observed <- RESULTS_FINAL_subet$HAPLO_FREQ_RECALC  #USE RESULTS_FINAL_multiallelic IF NEEDED
-  expected <- rev(sort(unique(SIM_DATA_subset$norm.reads.locus)))
+  observed <- RESULTS_FINAL_subet$HAPLO_FREQ_RECALC  
+  #expected <- rev(sort(unique(SIM_DATA_subset$norm.reads.locus)))
+  
+  # Calculate the means in windows of size n_haplos and use as expected haplo freq
+  by_ <- nrow(SIM_DATA_subset)/n_haplos
+  
+  if (by_ == 1){ # this means the sample is monoallelic for all loci except 1, so no need to average out anything
+    
+    expected <-  rev(sort(SIM_DATA_subset$norm.reads.locus))
+    
+  }else{ # if the sample is polyallelic for multiple loci, average freq is needed
+    
+    expected <- rollapply(rev(sort(SIM_DATA_subset$norm.reads.locus)), width = 1, by = by_, FUN = mean, align = "left", partial = TRUE)
+    
+    expected
+  }
+
+
   
   n_exp <- length(expected)
   n_obs <- length(observed)
@@ -463,8 +490,8 @@ for (sample in unique_samples){
 
 
 #checkpoint
-saveRDS(RESULTS_BENCH_ALL_FREQS,  paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-saveRDS(RESULTS_BENCH_ALL, paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+# saveRDS(RESULTS_BENCH_ALL_FREQS,  paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+# saveRDS(RESULTS_BENCH_ALL, paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 
 ######----------------------------------------------------------------------------------------
@@ -472,18 +499,11 @@ saveRDS(RESULTS_BENCH_ALL, paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_
 
 #### VISUALIZATION
 
-RESULTS_BENCH_ALL_FREQS <- readRDS(paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-RESULTS_BENCH_ALL <- readRDS(paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-
+# RESULTS_BENCH_ALL_FREQS <- readRDS(paste0("RESULTS_BENCH_ALL_FREQS_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+# RESULTS_BENCH_ALL <- readRDS(paste0("RESULTS_BENCH_ALL_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+# 
 
 RESULTS_BENCH_ALL$Individual <- rownames(RESULTS_BENCH_ALL)
-
-# # Define a lookup table
-# lookup_table <- data.frame(diff_haplos = c("0", "1", "2", "3", "-1", "-2", "-3", "-4"),
-#                            acc = c("exact_haplos", "missing_1_haplo", "missing_2_haplos", "missing_3_haplos",
-#                                    "extra_1_haplo", "extra_2_haplos", "extra_3_haplos", "extra_4_haplos"))
-# 
-# RESULTS_BENCH_ALL <- merge(RESULTS_BENCH_ALL, lookup_table, by = "diff_haplos", all.x = TRUE)
 
 
 # DESCRIBE THE DATASET: EXPECTED_VALUES FOR EACH N HAPLOTYPES
@@ -626,13 +646,5 @@ create_benchmark_plots <- function(RESULTS_BENCH_ALL, bench_name = "") {
 }
 
 
-create_benchmark_plots(RESULTS_BENCH_ALL, "clean_data")
+create_benchmark_plots(RESULTS_BENCH_ALL, "noisy_data")
 
-
-
-
-####  COMPARING FAPR RESULTS WITH CLEAN AND NOISY DATA
-clean <- readRDS("FAPR_RESULTS_FINALclean_haps_5_ind_1000.RDS") # 
-noisy <- readRDS("FAPR_RESULTS_FINALnoisy_haps_4_ind_100.RDS") # 
-
-m <- merge(clean[c("SampleID", "haplotype", "HAPLO_FREQ_RECALC")], noisy[c("SampleID", "haplotype", "HAPLO_FREQ_RECALC")], by= c("SampleID", "haplotype"), all = T)

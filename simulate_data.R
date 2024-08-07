@@ -217,6 +217,11 @@ for (sample in unique_samples){
   
   # 1) select sample
   sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
+  sID$norm.reads.locus <- round(sID$norm.reads.locus, 3)
+  
+  # sID %>%
+  #   group_by(resmarker) %>%
+  #   summarise(total_freq = sum(norm.reads.locus))
   
   # 2) select sample's COI
   #COI<- round(moire_output[moire_output$sample_id == sample,]["post_coi_med"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
@@ -330,7 +335,7 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || 1-sum(RESULTS$HAPLO_FREQ) > 0.0106) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
+    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || sum(RESULTS$HAPLO_FREQ) < 0.99) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
       
       i_counter <- i_counter + 1
       
@@ -399,8 +404,16 @@ for (sample in unique_samples){
 RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
 #RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
 
+#check
+cnts <- RESULTS_FINAL %>%
+  group_by(SampleID) %>%
+  summarize(length(unique(haplotype)))
+
 
 #saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
+
+
 
 
 ######----------------------------------------------------------------------------------------

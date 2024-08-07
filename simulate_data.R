@@ -9,7 +9,7 @@ library(zoo)
 
 ######----------------------------------------------------------------------------------------
 
-set.seed(49420)
+set.seed(42069)
 
 ##### GENERATE HAPLOTYPE PROPORTIONS
 
@@ -17,8 +17,13 @@ set.seed(49420)
 # Function to generate haplotype proportions
 generate_numbers_summing_to_1 <- function(n) {
   
-  # Generate n-1 random numbers between 0 and 1
-  random_numbers <- runif(n - 1, 0, 1)
+  # Special case for n == 1
+  if (n == 1) {
+    return(1)
+  }
+  
+  # Generate n-1 random numbers between 0.01 and 0.99
+  random_numbers <- runif(n - 1, 0.01, 0.99) # 0.01 min because this is the most common MAF
   
   # Sort the random numbers in ascending order
   sorted_numbers <- sort(random_numbers)
@@ -26,13 +31,20 @@ generate_numbers_summing_to_1 <- function(n) {
   # Calculate the differences between consecutive numbers
   differences <- c(sorted_numbers[1], diff(sorted_numbers), 1 - sorted_numbers[length(sorted_numbers)])
   
+  # Ensure the minimum value of 0.01
+  differences <- pmax(differences, 0.01)
+  
+  # Adjust to ensure they sum to 1 after enforcing minimum
+  total <- sum(differences)
+  differences <- differences / total
+  
   return(differences)
 }
 
 
 ##### GENERATE DATA
 
-max_haplos <- 4
+max_haplos <- 5
 individuals <- 100
 
 SIM_DATA <- list()
@@ -129,7 +141,34 @@ for (n in c(2:max_haplos)){
 #convert to a single df
 SIM_DATA <- bind_rows(SIM_DATA)
 
+#check data!
+
+#min should not be below 0.01
+summary(SIM_DATA$norm.reads.locus)
+
+check_SIM_DATA <- SIM_DATA %>%
+  group_by(SampleID, resmarker) %>%
+  summarise(total_freq = sum(norm.reads.locus))
+
+# all markers there? must be 7
+length(unique(check_SIM_DATA$resmarker))
+
+# all freqs = 1? must be 2100 == 300 * 7
+sum(check_SIM_DATA$total_freq) == length(unique(check_SIM_DATA$SampleID)) * length(unique(check_SIM_DATA$resmarker))
+
+
+#CREATE COI DATA
+unique_sample_ids <- unique(SIM_DATA$SampleID)
+coi_values <- sapply(unique_sample_ids, function(id) {
+  substr(id, nchar(id), nchar(id))
+})
+COI_SIM_DATA <- data.frame(SampleID = unique_sample_ids, COI = as.numeric(coi_values), row.names = NULL)
+
+
+#save data
 saveRDS(SIM_DATA, paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+saveRDS(COI_SIM_DATA, paste0("COI_SIM_DATA_clean", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+
 
 ######----------------------------------------------------------------------------------------
 
@@ -201,6 +240,7 @@ saveRDS(SIM_DATA_noisy, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_",
 ##### PHASING WITH FAPR
 
 SIM_DATA <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+COI_SIM_DATA <- readRDS(paste0("COI_SIM_DATA_clean", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 unique_samples <- unique(SIM_DATA$SampleID)
 RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
@@ -217,14 +257,14 @@ for (sample in unique_samples){
   
   # 1) select sample
   sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
-  sID$norm.reads.locus <- round(sID$norm.reads.locus, 3)
+  sID$norm.reads.locus <- round(sID$norm.reads.locus, 4)
   
   # sID %>%
   #   group_by(resmarker) %>%
   #   summarise(total_freq = sum(norm.reads.locus))
   
   # 2) select sample's COI
-  #COI<- round(moire_output[moire_output$sample_id == sample,]["post_coi_med"]) #truncated post_coi_mean seems to work best for controls. however, needs more testing
+  COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
   
   # 3) format data
   new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
@@ -335,7 +375,7 @@ for (sample in unique_samples){
   # 4) phase
   if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
     
-    while (dim(MOST_LIKELY_HAPLOS_FREQS)[1] == 0 || sum(RESULTS$HAPLO_FREQ) < 0.99) { ## PULIR CONDICIÓN? (previous condition: i_counter != COI && 1-sum(RESULTS$HAPLO_FREQ) > 0.0001)
+    while (COI > i_counter) { # sum(RESULTS$HAPLO_FREQ) < 0.99 || not useful anymore, getting better results with COI alone
       
       i_counter <- i_counter + 1
       
@@ -407,7 +447,10 @@ RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437,
 #check
 cnts <- RESULTS_FINAL %>%
   group_by(SampleID) %>%
-  summarize(length(unique(haplotype)))
+  summarize(n_unique_haplos = length(unique(haplotype)),
+            HAPLO_FREQ_TOTAL = sum(HAPLO_FREQ),
+            HAPLO_FREQ_RECALC_TOTAL = sum(HAPLO_FREQ_RECALC))
+
 
 
 #saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))

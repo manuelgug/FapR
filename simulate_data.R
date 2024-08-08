@@ -510,7 +510,7 @@ for (i in seq_along(FAPR_RESULTS_list)) {
                                    unique_haplotypes_FAPR = integer(),
                                    TP = integer(),
                                    FP = integer(),
-                                   FN = integer(),
+                                   #FN = integer(),
                                    Precision = numeric(),
                                    FDR = numeric(),
                                    stringsAsFactors = FALSE)
@@ -540,7 +540,7 @@ for (i in seq_along(FAPR_RESULTS_list)) {
     
     # Calculate False Positives and False Negatives
     FP <- length(setdiff(FAPR_haplotypes, clean_haplotypes))
-    FN <- length(setdiff(clean_haplotypes, FAPR_haplotypes))
+    #FN <- length(setdiff(clean_haplotypes, FAPR_haplotypes))
     
     # Calculate Precision and False Discovery Rate (FDR)
     Precision <- ifelse((TP + FP) > 0, TP / (TP + FP), NA)
@@ -553,18 +553,62 @@ for (i in seq_along(FAPR_RESULTS_list)) {
                                            unique_haplotypes_FAPR = unique_haplotypes_FAPR,
                                            TP = TP,
                                            FP = FP,
-                                           FN = FN,
+                                           #FN = FN,
                                            Precision = Precision,
                                            FDR = FDR,
                                            stringsAsFactors = FALSE))
   }
-  
-  # Add the results for the current FAPR_RESULTS_list element to the list
+
   comparison_results_list[[element_name]] <- comparison_results
 }
 
-# View the final comparison results list
 comparison_results_list
+
+
+
+# Add max_change column and bind rows
+comparison_results_list_with_max_change <- lapply(names(comparison_results_list), function(name) {
+  df <- comparison_results_list[[name]]
+  df$max_change <- name
+  return(df)
+})
+
+# Combine all data frames into one
+combined_comparison_results <- bind_rows(comparison_results_list_with_max_change)
+combined_comparison_results$max_change <- gsub(".*_max_change_", "", gsub(".RDS$", "", combined_comparison_results$max_change))
+
+# Convert unique_haplotypes_clean to factor and sort it alphabetically
+combined_comparison_results$unique_haplotypes_clean <- factor(combined_comparison_results$unique_haplotypes_clean, levels = sort(unique(combined_comparison_results$unique_haplotypes_clean)))
+
+# Plot
+ggplot(combined_comparison_results, aes(x = unique_haplotypes_clean, y = Precision, color = max_change, fill = max_change)) +
+  geom_boxplot(alpha = 0.25) +
+  facet_wrap(~ max_change, scales = "free_x") +
+  ylim(0, 1) +
+  labs(
+    x = "Expected Haplotypes",
+    y = "Precision",
+    title = "",
+    subtitle = ""
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+##
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

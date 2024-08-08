@@ -471,23 +471,100 @@ for (data in 1:length(SIM_DATA_list)){
 
 ############# EVALUATION OF noisy o clean data aquí
 
-# 1) did FAPR found all expected haplos?
+# 1) arrange data
+
+# import fapr results
+fapr_results_files <- list.files(pattern = "^FAPR_RESULTS_SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
+FAPR_RESULTS_list <- setNames(lapply(fapr_results_files, readRDS), fapr_results_files)
+
+# Remove columns 2 to 8 from all data frames in FAPR_RESULTS_list
+FAPR_RESULTS_list <- lapply(FAPR_RESULTS_list, function(df) {
+  df[, -c(2:8)] # Keep all columns except 2 to 8
+})
+
+# Order rows by HAPLO_FREQ_RECALC for each unique SampleID in FAPR_RESULTS_list
+FAPR_RESULTS_list <- lapply(FAPR_RESULTS_list, function(df) {
+  df[order(df$SampleID, -df$HAPLO_FREQ_RECALC), ]
+})
+
+# extract clean data to compare everything else with
+clean_data <- FAPR_RESULTS_list$FAPR_RESULTS_SIM_DATA_haps_5_ind_1000_max_change_0.RDS
+
+# Remove clean data from list
+FAPR_RESULTS_list <- FAPR_RESULTS_list[!names(FAPR_RESULTS_list) %in% "FAPR_RESULTS_SIM_DATA_haps_5_ind_1000_max_change_0.RDS"]
 
 
+# 2) did FAPR found all expected haplos?
+comparison_results_list <- list()
+unique_samples <- unique(clean_data$SampleID)
 
+# Loop through each element in FAPR_RESULTS_list
+for (i in seq_along(FAPR_RESULTS_list)) {
+  
+  element_name <- names(FAPR_RESULTS_list)[i]
+  cat("Processing:", element_name, "\n")
+  
+  # Initialize an empty data frame to store the results for the current FAPR_RESULTS_list element
+  comparison_results <- data.frame(SampleID = character(),
+                                   unique_haplotypes_clean = integer(),
+                                   unique_haplotypes_FAPR = integer(),
+                                   TP = integer(),
+                                   FP = integer(),
+                                   FN = integer(),
+                                   Precision = numeric(),
+                                   FDR = numeric(),
+                                   stringsAsFactors = FALSE)
+  
+  # Get the current FAPR_RESULTS_list element
+  FAPR_results <- FAPR_RESULTS_list[[i]]
+  
+  # Get unique SampleIDs from the current FAPR_RESULTS_list element
+  unique_fapr_samples <- unique(FAPR_results$SampleID)
+  
+  # Find common SampleIDs between clean_data and the current FAPR_RESULTS_list element
+  common_samples <- intersect(unique_samples, unique_fapr_samples)
+  
+  # Loop through each common sample and calculate the desired counts
+  for (sample in common_samples) {
+    
+    # Subset the data for the current sample
+    clean_haplotypes <- unique(clean_data$haplotype[clean_data$SampleID == sample])
+    FAPR_haplotypes <- unique(FAPR_results$haplotype[FAPR_results$SampleID == sample])
+    
+    # Count unique haplotypes
+    unique_haplotypes_clean <- length(clean_haplotypes)
+    unique_haplotypes_FAPR <- length(FAPR_haplotypes)
+    
+    # Count the number of intersecting haplotypes (True Positives)
+    TP <- length(intersect(clean_haplotypes, FAPR_haplotypes))
+    
+    # Calculate False Positives and False Negatives
+    FP <- length(setdiff(FAPR_haplotypes, clean_haplotypes))
+    FN <- length(setdiff(clean_haplotypes, FAPR_haplotypes))
+    
+    # Calculate Precision and False Discovery Rate (FDR)
+    Precision <- ifelse((TP + FP) > 0, TP / (TP + FP), NA)
+    FDR <- ifelse((TP + FP) > 0, FP / (TP + FP), NA)
+    
+    # Store the results in the data frame
+    comparison_results <- rbind(comparison_results, 
+                                data.frame(SampleID = sample,
+                                           unique_haplotypes_clean = unique_haplotypes_clean,
+                                           unique_haplotypes_FAPR = unique_haplotypes_FAPR,
+                                           TP = TP,
+                                           FP = FP,
+                                           FN = FN,
+                                           Precision = Precision,
+                                           FDR = FDR,
+                                           stringsAsFactors = FALSE))
+  }
+  
+  # Add the results for the current FAPR_RESULTS_list element to the list
+  comparison_results_list[[element_name]] <- comparison_results
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
+# View the final comparison results list
+comparison_results_list
 
 
 

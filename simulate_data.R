@@ -582,18 +582,24 @@ combined_comparison_results$unique_haplotypes_clean <- factor(combined_compariso
 
 # Plot
 ggplot(combined_comparison_results, aes(x = unique_haplotypes_clean, y = Precision, color = max_change, fill = max_change)) +
-  geom_boxplot(alpha = 0.25) +
-  facet_wrap(~ max_change, scales = "free_x") +
-  ylim(0, 1) +
+  geom_boxplot(alpha = 0.50, outlier.shape = NA) + # Boxplot with transparency and no outliers shown
+  geom_jitter(width = 0.1, size = 1.5, alpha = 0.15) + # Jittered dots with some transparency
+  facet_wrap(~ max_change, scales = "free_x", nrow = 2) + # Facet by max_change
+  ylim(0, 1) + # Set y-axis limits
   labs(
     x = "Expected Haplotypes",
     y = "Precision",
-    title = "",
-    subtitle = ""
+    title = "Precision by Expected Haplotypes",
+    subtitle = "Faceted by max_change"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
 
+
+# check evennes from allele data to see the corelation between precision and evenness!!
 
 ##
 

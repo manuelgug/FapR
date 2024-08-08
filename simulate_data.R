@@ -45,7 +45,7 @@ generate_numbers_summing_to_1 <- function(n) {
 ##### GENERATE DATA
 
 max_haplos <- 5
-individuals <- 100
+individuals <- 1000
 
 SIM_DATA <- list()
 
@@ -177,7 +177,7 @@ saveRDS(COI_SIM_DATA, paste0("COI_SIM_DATA_clean", "haps_", max_haplos,  "_ind_"
 # adding noise means that freqs for each resmarker vary a bit; for instance, it may not be 55-45 for all in a 2 haps sample, but rather dhfr_59: 57-43, dhfr_437: 50-50, dhps_540: 52-48
 # This will increase the errors. How will FAPR perform?
 
-SIM_DATA_noisy <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
+SIM_DATA <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
 
 # Function to introduce noise to norm.reads.locus values
 introduce_noise <- function(data, max_change = 0, min_change = 0) {
@@ -217,252 +217,288 @@ introduce_noise <- function(data, max_change = 0, min_change = 0) {
 }
 
 
-# Apply the introduce_noise function to SIM_DATA
-max_change = 0.1
-min_change = 0.05
+# Define the range of max_change values
+max_change_values <- seq(0, 0.4, by = 0.05)
+min_change <- 0
 
-SIM_DATA_noisy <- introduce_noise(SIM_DATA_noisy, max_change = max_change, min_change = min_change)
-
-# Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
-indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
-                 apply(SIM_DATA_noisy[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
-
-# Order noisy_SIM_DATA according to the indices
-SIM_DATA_noisy <- SIM_DATA_noisy[indices, ]
-
-saveRDS(SIM_DATA_noisy, paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-
-
-#so up until here i have clean and noisy data. phasing for clean data is gonna come out perfect, i'll evaluate the noisy data using the clean results.
-
-######----------------------------------------------------------------------------------------
-
-##### PHASING WITH FAPR
-
-SIM_DATA <- readRDS(paste0("SIM_DATA_clean_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-COI_SIM_DATA <- readRDS(paste0("COI_SIM_DATA_clean", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-
-unique_samples <- unique(SIM_DATA$SampleID)
-RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
-
-
-for (sample in unique_samples){
+# Loop through each max_change value
+for (max_change in max_change_values) {
   
-  #sample <-unique_samples[101]
+  # Apply the introduce_noise function to SIM_DATA
+  SIM_DATA_noisy <- introduce_noise(SIM_DATA, max_change = max_change, min_change = min_change)
   
-  i_counter <- 0
-  MOST_LIKELY_HAPLOS <- data.frame()
-  MOST_LIKELY_HAPLOS_FREQS <- data.frame()
-  RESULTS <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0), HAPLO_FREQ = numeric(0), HAPLO_FREQ_RECALC = numeric(0))
+  # Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
+  indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
+                   apply(SIM_DATA_noisy[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
   
-  # 1) select sample
-  sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
-  sID$norm.reads.locus <- round(sID$norm.reads.locus, 4)
+  # Order noisy_SIM_DATA according to the indices
+  SIM_DATA_noisy <- SIM_DATA_noisy[indices, ]
   
-  # sID %>%
-  #   group_by(resmarker) %>%
-  #   summarise(total_freq = sum(norm.reads.locus))
+  #CREATE COI DATA
+  unique_sample_ids <- unique(SIM_DATA_noisy$SampleID)
+  coi_values <- sapply(unique_sample_ids, function(id) {
+    substr(id, nchar(id), nchar(id))
+  })
+  COI_SIM_DATA <- data.frame(SampleID = unique_sample_ids, COI = as.numeric(coi_values), row.names = NULL)
   
-  # 2) select sample's COI
-  COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
+  # Save the noisy data frame to an RDS file
+  filename <- paste0("SIM_DATA_", "haps_", max_haplos,  "_ind_", individuals, "_max_change_", max_change, ".RDS")
+  saveRDS(SIM_DATA_noisy, filename)
   
-  # 3) format data
-  new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow=1))
-  colnames(new_df) <- sID$resmarker
-  new_df[1,] <-sID$AA
-  new_df <- rbind(new_df, sID$norm.reads.locus )
+  filename_coi <- paste0("SIM_DATA_COI_", "haps_", max_haplos,  "_ind_", individuals, "_max_change_", max_change, ".RDS")
+  saveRDS(COI_SIM_DATA, filename_coi)
   
-  unique_resmarkers <- unique(colnames(new_df))
-  
-  resulting_dataframes <- list()
-  # Loop through each unique resmarker (colname)
-  for (resmarker in unique_resmarkers) {
-    columns <- which(names(new_df) == resmarker)
-    df <- t(as.data.frame(new_df[, columns]))
-    df <- as.data.frame(df)
-    df$V2 <- as.numeric(df$V2)
-    colnames(df) <- c(resmarker, "norm.reads.locus")
-    rownames(df) <- NULL
-    resulting_dataframes[[resmarker]] <- df
-  }
-  
-  
-  ####### RESULTING_DATAFRAMES.CORRECT ABUNDANCES!!! @@@@@@@
-  
-  # Function to order each data frame by norm.reads.locus in descending order
-  order_by_norm_reads <- function(df) {
-    df[order(-df$norm.reads.locus), ]
-  }
-  
-  # Apply the ordering function to each data frame in the list
-  resulting_dataframes <- lapply(resulting_dataframes, order_by_norm_reads)
-  
-  # n of alleles per amplicon
-  n_alleles_amps <- sapply(resulting_dataframes, nrow)
-  
-  # Function to get the mean of norm.reads.locus for each row position within a group
-  adjust_by_allele_count <- function(df_list) {
-    # Find the maximum number of rows in the data frames
-    max_rows <- max(sapply(df_list, nrow))
-    
-    # Initialize a matrix to store the means
-    mean_matrix <- matrix(NA, nrow = max_rows, ncol = length(df_list))
-    
-    # Fill the matrix with norm.reads.locus values, padding with NA if necessary
-    for (i in seq_along(df_list)) {
-      norm_reads <- df_list[[i]]$norm.reads.locus
-      mean_matrix[1:length(norm_reads), i] <- norm_reads
-    }
-    
-    # Calculate the row means, ignoring NA values
-    row_means <- rowMeans(mean_matrix, na.rm = TRUE)
-    
-    # Replace norm.reads.locus in each data frame with the calculated row means
-    adjusted_dfs <- lapply(df_list, function(df) {
-      df$norm.reads.locus <- row_means[1:nrow(df)]
-      return(df)
-    })
-    
-    return(adjusted_dfs)
-  }
-  
-  # Split data frames by the number of alleles
-  allele_group_list <- split(resulting_dataframes, n_alleles_amps)
-  
-  # Apply the adjustment function to each group in the allele_group_list
-  adjusted_allele_groups <- lapply(allele_group_list, adjust_by_allele_count)
-  
-  # Combine the adjusted data frames back into a single list
-  resulting_dataframes <- do.call(c, adjusted_allele_groups)
-  
-  #rename elements of the list with amp names
-  names(resulting_dataframes) <- sapply(resulting_dataframes, function(df) colnames(df)[[1]])
-  
-  
-  ########################################################3
-  
-  
-  alleles<-list(resulting_dataframes$dhps_431$dhps_431,
-                resulting_dataframes$dhps_437$dhps_437, 
-                resulting_dataframes$dhps_540$dhps_540, 
-                resulting_dataframes$dhps_581$dhps_581,
-                resulting_dataframes$dhfr_51$dhfr_51,
-                resulting_dataframes$dhfr_59$dhfr_59,
-                resulting_dataframes$dhfr_108$dhfr_108) #order is important
-  
-  freqs<-list(resulting_dataframes$dhps_431$norm.reads.locus,
-              resulting_dataframes$dhps_437$norm.reads.locus, 
-              resulting_dataframes$dhps_540$norm.reads.locus, 
-              resulting_dataframes$dhps_581$norm.reads.locus,
-              resulting_dataframes$dhfr_51$norm.reads.locus,
-              resulting_dataframes$dhfr_59$norm.reads.locus,
-              resulting_dataframes$dhfr_108$norm.reads.locus) #order is important
-  
-  comb_alleles <- expand.grid(alleles)
-  comb_freqs <- expand.grid(freqs)
-  
-  # Check if comb_alleles is empty, and if so, skip to the next sample
-  if (nrow(comb_alleles) == 0) {
-    cat("Skipping sample", sample, "\n")
-    next
-  }
-  
-  comb_alleles_matrix <- as.data.frame(comb_alleles)
-  colnames(comb_alleles_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51","dhfr_59", "dhfr_108")
-  comb_freqs_matrix <- as.data.frame(comb_freqs)
-  colnames(comb_freqs_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51","dhfr_59", "dhfr_108")
-  
-  # 4) phase
-  if (dim(comb_alleles_matrix)[1] != 1){ #basically, don't process monoallelic samples 'cause they make the loop crash
-    
-    while (COI > i_counter) { # sum(RESULTS$HAPLO_FREQ) < 0.99 || not useful anymore, getting better results with COI alone
-      
-      i_counter <- i_counter + 1
-      
-      # Calculate probs if all haplotypes were present
-      comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_431 * comb_freqs_matrix$dhps_437 * comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhps_581 * comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59  * comb_freqs_matrix$dhfr_108
-      
-      #remove haplotypes with prob = 0
-      #comb_freqs_matrix <- subset(comb_freqs_matrix, probs != 0)
-      
-      # Calculate SD and CV
-      comb_freqs_matrix$freq_mean <- rowMeans(comb_freqs_matrix[, 1:7], na.rm = TRUE)
-      comb_freqs_matrix$SD <- apply(comb_freqs_matrix[, 1:7], 1, sd)
-      comb_freqs_matrix$CV <- (comb_freqs_matrix$SD / comb_freqs_matrix$freq_mean)
-      
-      ## Select the "BEST" haplo: highest prob and lowest CV
-      lowest_CV <- which.min(comb_freqs_matrix$CV)
-      highest_prob <- as.numeric(which.max(comb_freqs_matrix$probs))
-      
-      #do CV and probs agree with each other?
-      if (lowest_CV == highest_prob) {
-        most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-        print(paste(sample, "#", i_counter, ":", most_likely_hap, "is the most likely true haplotype.", collapse = " "))
-      } else {
-        most_likely_hap1 <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
-        most_likely_hap2 <- paste(as.matrix(comb_alleles_matrix[lowest_CV, ]), collapse = "_")
-        print(paste(sample, "#", i_counter, ": One of", most_likely_hap1, "and", most_likely_hap2, "is the most likely true haplotype. Visually examine the plot."))
-      }
-      
-      # Append most likely haplo
-      MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
-      temp <- comb_freqs_matrix[highest_prob, ]
-      temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:7])
-      temp$HAPLO_FREQ_RECALC <- NA
-      MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
-      
-      # Select minimum allele freq from the most likely haplotype
-      min_allele_from_most_lilely_hap <- min(comb_freqs_matrix[highest_prob, 1:7])
-      
-      # Boolean mask to detect alleles that are present on the most likely haplotype
-      row_to_match <- as.matrix(comb_alleles_matrix[highest_prob, ])
-      mask <- sapply(colnames(comb_alleles_matrix), function(col_name) {
-        comb_alleles_matrix[, col_name] == row_to_match[, col_name]
-      })
-      
-      # Subtract min_allele_from_most_likely_hap from the cells where mask is TRUE and ignore the specified column
-      comb_freqs_matrix <- comb_freqs_matrix[, 1:7]
-      comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_lilely_hap
-      
-      #recalculate proportions of final haplos
-      MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
-      
-      RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
-    }  
-    
-  }else{ 
-    
-    #FORMAT AND ADD MONOALLELIC SAMPLES HERE
-    RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
-  }
-  
-  #DONE
-  RESULTS_FINAL <- rbind(RESULTS, RESULTS_FINAL)
+  # Optionally print a message to indicate progress
+  print(paste("Saved file:", filename))
 }
 
-# add haplo name
-RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, RESULTS_FINAL$dhfr_108, sep = "_")
-#RESULTS_FINAL_multiallelic <- RESULTS_FINAL[RESULTS_FINAL$HAPLO_FREQ_RECALC < 1, ]
 
-#check
-cnts <- RESULTS_FINAL %>%
-  group_by(SampleID) %>%
-  summarize(n_unique_haplos = length(unique(haplotype)),
-            HAPLO_FREQ_TOTAL = sum(HAPLO_FREQ),
-            HAPLO_FREQ_RECALC_TOTAL = sum(HAPLO_FREQ_RECALC))
+##############################----------------------------------------------------------------------------------------
+##### PHASING WITH FAPR ######
+##############################
+
+FAPR <- function(SIM_DATA, COI_SIM_DATA,  verbose = TRUE) {
+  
+  # Initialize the final results data frame
+  RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), 
+                              dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), 
+                              dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), 
+                              HAPLO_FREQ_RECALC = numeric(0))
+  
+  # Extract unique sample names
+  unique_samples <- unique(SIM_DATA$SampleID)
+  
+  # Loop through each sample
+  for (sample in unique_samples) {
+    
+    i_counter <- 0
+    MOST_LIKELY_HAPLOS <- data.frame()
+    MOST_LIKELY_HAPLOS_FREQS <- data.frame()
+    RESULTS <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), 
+                          dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), 
+                          dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), 
+                          HAPLO_FREQ_RECALC = numeric(0))
+    
+    # 1) Select sample
+    sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
+    sID$norm.reads.locus <- round(sID$norm.reads.locus, 4)
+    
+    # 2) Select sample's COI
+    COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
+    
+    # 3) Format data
+    new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow = 1))
+    colnames(new_df) <- sID$resmarker
+    new_df[1, ] <- sID$AA
+    new_df <- rbind(new_df, sID$norm.reads.locus)
+    
+    unique_resmarkers <- unique(colnames(new_df))
+    
+    # Initialize list to store data frames
+    resulting_dataframes <- list()
+    
+    # Loop through each unique resmarker (colname)
+    for (resmarker in unique_resmarkers) {
+      columns <- which(names(new_df) == resmarker)
+      df <- t(as.data.frame(new_df[, columns]))
+      df <- as.data.frame(df)
+      df$V2 <- as.numeric(df$V2)
+      colnames(df) <- c(resmarker, "norm.reads.locus")
+      rownames(df) <- NULL
+      resulting_dataframes[[resmarker]] <- df
+    }
+    
+    ####### Correct abundances #######
+    
+    # Function to order each data frame by norm.reads.locus in descending order
+    order_by_norm_reads <- function(df) {
+      df[order(-df$norm.reads.locus), ]
+    }
+    
+    resulting_dataframes <- lapply(resulting_dataframes, order_by_norm_reads)
+    n_alleles_amps <- sapply(resulting_dataframes, nrow)
+    
+    # Function to get the mean of norm.reads.locus for each row position within a group
+    adjust_by_allele_count <- function(df_list) {
+      max_rows <- max(sapply(df_list, nrow))
+      mean_matrix <- matrix(NA, nrow = max_rows, ncol = length(df_list))
+      
+      for (i in seq_along(df_list)) {
+        norm_reads <- df_list[[i]]$norm.reads.locus
+        mean_matrix[1:length(norm_reads), i] <- norm_reads
+      }
+      row_means <- rowMeans(mean_matrix, na.rm = TRUE)
+      
+      adjusted_dfs <- lapply(df_list, function(df) {
+        df$norm.reads.locus <- row_means[1:nrow(df)]
+        return(df)
+      })
+      
+      return(adjusted_dfs)
+    }
+    
+    allele_group_list <- split(resulting_dataframes, n_alleles_amps)
+    adjusted_allele_groups <- lapply(allele_group_list, adjust_by_allele_count)
+    resulting_dataframes <- do.call(c, adjusted_allele_groups)
+    names(resulting_dataframes) <- sapply(resulting_dataframes, function(df) colnames(df)[[1]])
+    
+    ########################################################3
+    
+    alleles <- list(resulting_dataframes$dhps_431$dhps_431,
+                    resulting_dataframes$dhps_437$dhps_437, 
+                    resulting_dataframes$dhps_540$dhps_540, 
+                    resulting_dataframes$dhps_581$dhps_581,
+                    resulting_dataframes$dhfr_51$dhfr_51,
+                    resulting_dataframes$dhfr_59$dhfr_59,
+                    resulting_dataframes$dhfr_108$dhfr_108) # Order is important
+    
+    freqs <- list(resulting_dataframes$dhps_431$norm.reads.locus,
+                  resulting_dataframes$dhps_437$norm.reads.locus, 
+                  resulting_dataframes$dhps_540$norm.reads.locus, 
+                  resulting_dataframes$dhps_581$norm.reads.locus,
+                  resulting_dataframes$dhfr_51$norm.reads.locus,
+                  resulting_dataframes$dhfr_59$norm.reads.locus,
+                  resulting_dataframes$dhfr_108$norm.reads.locus) # Order is important
+    
+    comb_alleles <- expand.grid(alleles)
+    comb_freqs <- expand.grid(freqs)
+    
+    # Check if comb_alleles is empty, and if so, skip to the next sample
+    if (nrow(comb_alleles) == 0) {
+      cat("Skipping sample", sample, "\n")
+      next
+    }
+    
+    comb_alleles_matrix <- as.data.frame(comb_alleles)
+    colnames(comb_alleles_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108")
+    comb_freqs_matrix <- as.data.frame(comb_freqs)
+    colnames(comb_freqs_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108")
+    
+    # 4) Phase
+    if (dim(comb_alleles_matrix)[1] != 1) { # Skip monoallelic samples as they make the loop crash
+      
+      while (COI > i_counter) {
+        i_counter <- i_counter + 1
+        
+        # Calculate probs if all haplotypes were present
+        comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_431 * comb_freqs_matrix$dhps_437 * 
+          comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhps_581 * 
+          comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59 * 
+          comb_freqs_matrix$dhfr_108
+        highest_prob <- as.numeric(which.max(comb_freqs_matrix$probs))
+        
+        # Extract most probable haplo
+        most_likely_hap <- paste(as.matrix(comb_alleles_matrix[highest_prob, ]), collapse = "_")
+        
+        if (verbose){
+          print(paste0(sample, " #", i_counter, ": ", most_likely_hap, " is the most likely true haplotype."))  
+        }
+        
+        # Append most likely haplo
+        MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
+        temp <- comb_freqs_matrix[highest_prob, ]
+        temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:7])
+        temp$HAPLO_FREQ_RECALC <- NA
+        MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
+        
+        # Select minimum allele freq from the most likely haplotype
+        min_allele_from_most_likely_hap <- min(comb_freqs_matrix[highest_prob, 1:7])
+        
+        # Boolean mask to detect alleles that are present on the most likely haplotype
+        row_to_match <- as.matrix(comb_alleles_matrix[highest_prob, ])
+        mask <- sapply(colnames(comb_alleles_matrix), function(col_name) {
+          comb_alleles_matrix[, col_name] == row_to_match[, col_name]
+        })
+        
+        # Subtract min_allele_from_most_likely_hap from the cells where mask is TRUE and ignore the specified column
+        comb_freqs_matrix <- comb_freqs_matrix[, 1:7]
+        comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_likely_hap
+        
+        # Recalculate proportions of final haplos
+        MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC <- MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ / sum(MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ)
+        
+        RESULTS <- cbind(SampleID = sample, MOST_LIKELY_HAPLOS, HAPLO_FREQ = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ, HAPLO_FREQ_RECALC = MOST_LIKELY_HAPLOS_FREQS$HAPLO_FREQ_RECALC)
+      }  
+      
+    } else { 
+      
+      # Format and add monoallelic samples here
+      RESULTS <- cbind(SampleID = sample, comb_alleles_matrix, HAPLO_FREQ = 1, HAPLO_FREQ_RECALC = 1)
+    }
+    
+    # Append results to the final dataframe
+    RESULTS_FINAL <- rbind(RESULTS, RESULTS_FINAL)
+  }
+  
+  # Add haplotype name
+  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, 
+                                   RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, 
+                                   RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, 
+                                   RESULTS_FINAL$dhfr_108, sep = "_")
+  
+  return(RESULTS_FINAL)
+}
+
+# Get all SIM_DATA and COI_SIM_DATA files
+sim_data_files <- list.files(pattern = "^SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
+SIM_DATA_list <- setNames(lapply(sim_data_files, readRDS), sim_data_files)
+coi_data_files <- list.files(pattern = "^SIM_DATA_COI_haps_.*_ind_.*_max_change_.*\\.RDS")
+COI_SIM_DATA_list <- setNames(lapply(coi_data_files, readRDS), coi_data_files)
+
+print(paste("Loaded", length(SIM_DATA_list), "SIM_DATA files and", length(COI_SIM_DATA_list), "COI_SIM_DATA files into named lists."))
 
 
+## RUN FAPR!!
+for (data in 1:length(SIM_DATA_list)){
+  
+  data_name <- names(SIM_DATA_list)[data]
+  print(paste0("------ Processing Dataset: ", data_name, " -------"))
+  
+  # 1) subset data
+  SIM_DATA <- SIM_DATA_list[[data]]
+  COI_SIM_DATA <- COI_SIM_DATA_list[[data]]
+  
+  # 2) run fapr
+  RESULTS_FAPR <- FAPR(SIM_DATA, COI_SIM_DATA, verbose = FALSE)
+  
+  # 3) save results
+  saveRDS(RESULTS_FAPR, paste0("FAPR_RESULTS_", data_name))
 
-#saveRDS(RESULTS_FINAL, paste0("FAPR_RESULTS_FINALnoisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS"))
-
-
-
+}
 
 
 ######----------------------------------------------------------------------------------------
 
-############# EVALUATION OF noisy o clean data aquí  (PROBLEAMS CON NOISY. CLEAN FUNCIONA. CHECAR)
-# 
+############# EVALUATION OF noisy o clean data aquí
+
+# 1) did FAPR found all expected haplos?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############# EVALUATION OF noisy o clean data aquí  (PROBLEAMS CON NOISY. CLEAN FUNCIONA. CHECAR) # 
 # SIM_DATA <- readRDS(paste0("SIM_DATA_noisy_", "haps_", max_haplos,  "_ind_", individuals, ".RDS")) # 
 
 #SIM_DATA <- as.data.frame(SIM_DATA)
@@ -473,6 +509,8 @@ RESULTS_BENCH_ALL <- data.frame()
 RESULTS_BENCH_ALL_FREQS <- list()
 
 for (sample in unique_samples){
+  
+  print(sample)
   
   SIM_DATA_subset <- SIM_DATA[SIM_DATA$SampleID == sample,]
   SIM_DATA_subset <- SIM_DATA_subset[SIM_DATA_subset$norm.reads.locus != 1,] #remove monoallelic loci

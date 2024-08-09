@@ -569,7 +569,6 @@ for (i in seq_along(FAPR_RESULTS_list)) {
   comparison_results_list[[element_name]] <- comparison_results
 }
 
-comparison_results_list
 
 # Add max_change column and bind rows
 comparison_results_list_with_max_change <- lapply(names(comparison_results_list), function(name) {
@@ -676,8 +675,6 @@ evenness_means <- evenness_results_list %>%
     max_change = first(max_change)
   )
 
-sapply(evenness_means[,c(-1,-2)], function(x) sd(x, na.rm = TRUE))
-
 # Calculate the correlation matrix
 cor_matrix <- cor(evenness_means[,c(-1,-2)])
 
@@ -697,16 +694,29 @@ corrplot(cor_matrix, method = "circle", type = "upper",
          order = "hclust") 
 
 # merge with precision
+evenness_precision <- merge(evenness_means, combined_comparison_results[c("SampleID", "unique_haplotypes_clean", "Precision", "max_change")], by = c("SampleID", "max_change"))
 
-evenness_precision <- merge(evenness_means, combined_comparison_results[c("SampleID", "Precision", "unique_haplotypes_clean", "max_change")], by = c("SampleID", "max_change"))
+# Customize facet labels with "MOI: " prefix
+facet_labels <- as_labeller(function(x) paste("MOI:", x))
 
-#mean_Shannon_EH looks good
-ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change))+
-  #geom_boxplot(alpha = 0.50, outlier.shape = NA) + 
-  geom_jitter(width = 0.1, size = 0.5, alpha = 0.15) + 
-  facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2) + 
-  geom_smooth(method = "lm", se = T)+
-  theme_minimal()
+# Create the plot
+ev_pres_plot <- ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change)) +
+  geom_jitter(width = 0.05, height = 0.05, size = 1, alpha = 0.2) + 
+  geom_smooth(method = "lm") +
+  facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2, labeller = facet_labels) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 14)  # Increase facet title size
+  ) +
+  labs(
+    x = "Mean Shannon's Equitability Index (EH)",
+    y = "Precision",
+    title = ""
+  )
+
+ev_pres_plot
+
+ggsave("evenness_presicion_plot.png", ev_pres_plot, dpi = 300, width = 14, height = 10, bg = "white")
 
 ##
 

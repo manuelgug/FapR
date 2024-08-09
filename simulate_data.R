@@ -5,6 +5,7 @@ library(ggplot2)
 library(dplyr)
 library(reshape2)
 library(zoo)
+library(corrplot)
 
 
 ######----------------------------------------------------------------------------------------
@@ -309,39 +310,39 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA,  verbose = TRUE) {
     }
     
     ####### Correct abundances #######
-    
+
     # Function to order each data frame by norm.reads.locus in descending order
     order_by_norm_reads <- function(df) {
       df[order(-df$norm.reads.locus), ]
     }
-    
+
     resulting_dataframes <- lapply(resulting_dataframes, order_by_norm_reads)
     n_alleles_amps <- sapply(resulting_dataframes, nrow)
-    
+
     # Function to get the mean of norm.reads.locus for each row position within a group
     adjust_by_allele_count <- function(df_list) {
       max_rows <- max(sapply(df_list, nrow))
       mean_matrix <- matrix(NA, nrow = max_rows, ncol = length(df_list))
-      
+
       for (i in seq_along(df_list)) {
         norm_reads <- df_list[[i]]$norm.reads.locus
         mean_matrix[1:length(norm_reads), i] <- norm_reads
       }
       row_means <- rowMeans(mean_matrix, na.rm = TRUE)
-      
+
       adjusted_dfs <- lapply(df_list, function(df) {
         df$norm.reads.locus <- row_means[1:nrow(df)]
         return(df)
       })
-      
+
       return(adjusted_dfs)
     }
-    
+
     allele_group_list <- split(resulting_dataframes, n_alleles_amps)
     adjusted_allele_groups <- lapply(allele_group_list, adjust_by_allele_count)
     resulting_dataframes <- do.call(c, adjusted_allele_groups)
     names(resulting_dataframes) <- sapply(resulting_dataframes, function(df) colnames(df)[[1]])
-    
+
     ########################################################3
     
     alleles <- list(resulting_dataframes$dhps_431$dhps_431,
@@ -473,6 +474,12 @@ for (data in 1:length(SIM_DATA_list)){
 
 # 1) arrange data
 
+# Get all SIM_DATA and COI_SIM_DATA files
+sim_data_files <- list.files(pattern = "^SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
+SIM_DATA_list <- setNames(lapply(sim_data_files, readRDS), sim_data_files)
+coi_data_files <- list.files(pattern = "^SIM_DATA_COI_haps_.*_ind_.*_max_change_.*\\.RDS")
+COI_SIM_DATA_list <- setNames(lapply(coi_data_files, readRDS), coi_data_files)
+
 # import fapr results
 fapr_results_files <- list.files(pattern = "^FAPR_RESULTS_SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
 FAPR_RESULTS_list <- setNames(lapply(fapr_results_files, readRDS), fapr_results_files)
@@ -494,7 +501,7 @@ clean_data <- FAPR_RESULTS_list$FAPR_RESULTS_SIM_DATA_haps_5_ind_1000_max_change
 FAPR_RESULTS_list <- FAPR_RESULTS_list[!names(FAPR_RESULTS_list) %in% "FAPR_RESULTS_SIM_DATA_haps_5_ind_1000_max_change_0.RDS"]
 
 
-# 2) did FAPR found all expected haplos?
+# 2) Precision against noise. How does precision behaves when introducing noise to the data for each COI?
 comparison_results_list <- list()
 unique_samples <- unique(clean_data$SampleID)
 
@@ -564,8 +571,6 @@ for (i in seq_along(FAPR_RESULTS_list)) {
 
 comparison_results_list
 
-
-
 # Add max_change column and bind rows
 comparison_results_list_with_max_change <- lapply(names(comparison_results_list), function(name) {
   df <- comparison_results_list[[name]]
@@ -581,33 +586,128 @@ combined_comparison_results$max_change <- gsub(".*_max_change_", "", gsub(".RDS$
 combined_comparison_results$unique_haplotypes_clean <- factor(combined_comparison_results$unique_haplotypes_clean, levels = sort(unique(combined_comparison_results$unique_haplotypes_clean)))
 
 # Plot
-ggplot(combined_comparison_results, aes(x = unique_haplotypes_clean, y = Precision, color = max_change, fill = max_change)) +
-  geom_boxplot(alpha = 0.50, outlier.shape = NA) + # Boxplot with transparency and no outliers shown
-  geom_jitter(width = 0.1, size = 1.5, alpha = 0.15) + # Jittered dots with some transparency
-  facet_wrap(~ max_change, scales = "free_x", nrow = 2) + # Facet by max_change
-  ylim(0, 1) + # Set y-axis limits
+eval_adj_relabun <- ggplot(combined_comparison_results, aes(x = unique_haplotypes_clean, y = Precision, color = max_change, fill = max_change)) +
+  geom_boxplot(alpha = 0.50, outlier.shape = NA) + 
+  geom_jitter(width = 0.25, size = 1, alpha = 0.15) + 
+  facet_wrap(~ max_change, scales = "free_x", nrow = 2) + 
   labs(
     x = "Expected Haplotypes",
     y = "Precision",
     title = "Precision by Expected Haplotypes",
-    subtitle = "Faceted by max_change"
+    subtitle = ""
   ) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
+    legend.position = "bottom")
+
+eval_adj_relabun
+
+ggsave("eval_adj_relabun.png", eval_adj_relabun, dpi = 300, width = 14, height = 10, bg = "white")
+
+
+
+# 3) check evenness from allele data to see the correlation between precision and evenness. is precision given by the evennes of the individual resmarker freqs?
+
+# Function to calculate various evenness metrics
+calculate_evenness_metrics <- function(freqs) {
+  # Number of alleles (S)
+  S <- length(freqs)
+  
+  # Shannon-Wiener Index (H')
+  H <- -sum(freqs * log(freqs))
+  
+  # Pielou's Evenness Index (J')
+  J <- H / log(S)
+  
+  # Simpson's Diversity Index (D)
+  D <- sum(freqs^2)
+  
+  # Simpson's Evenness Index (E1/D)
+  E1_D <- (1 / D) / S
+  
+  # Shannon's Equitability Index (EH)
+  EH <- H / log(S)
+  
+  # Berger-Parker Index
+  p_max <- max(freqs)
+  Berger_Parker <- 1 / p_max
+  
+  # Smith & Wilson’s Evenness Index (Evar)
+  Evar <- 1 - (2 / pi) * atan(var(freqs) / mean(freqs))
+  
+  # Return a list of evenness metrics
+  return(list(J = J, E1_D = E1_D, EH = EH, Berger_Parker = Berger_Parker, Evar = Evar))
+}
+
+# Apply this to each element in SIM_DATA_list
+evenness_results_list <- lapply(SIM_DATA_list, function(df) {
+  df %>%
+    group_by(SampleID, resmarker) %>%
+    summarise(
+      Pielou_J = calculate_evenness_metrics(norm.reads.locus)$J,
+      Simpson_E1_D = calculate_evenness_metrics(norm.reads.locus)$E1_D,
+      Shannon_EH = calculate_evenness_metrics(norm.reads.locus)$EH,
+      Berger_Parker = calculate_evenness_metrics(norm.reads.locus)$Berger_Parker,
+      Evar = calculate_evenness_metrics(norm.reads.locus)$Evar
+    )
+})
+
+# Add max_change column and bind rows
+evenness_results_list <- lapply(names(evenness_results_list), function(name) {
+  df <- evenness_results_list[[name]]
+  df$max_change <- name
+  return(df)
+})
+
+# Combine all data frames into one
+evenness_results_list <- bind_rows(evenness_results_list)
+evenness_results_list$max_change <- gsub(".*_max_change_", "", gsub(".RDS$", "", evenness_results_list$max_change))
+
+#calculate mean metrics for each sample (mean from non NA results for each resmarker)
+evenness_means <- evenness_results_list %>%
+  group_by(SampleID, max_change) %>%
+  summarise(
+    mean_Pielou_J = mean(Pielou_J[is.finite(Pielou_J)], na.rm = TRUE),
+    mean_Simpson_E1_D = mean(Simpson_E1_D[is.finite(Simpson_E1_D)], na.rm = TRUE),
+    mean_Shannon_EH = mean(Shannon_EH[is.finite(Shannon_EH)], na.rm = TRUE),
+    mean_Berger_Parker = mean(Berger_Parker[is.finite(Berger_Parker)], na.rm = TRUE),
+    mean_Evar = mean(Evar[is.finite(Evar)], na.rm = TRUE),
+    max_change = first(max_change)
   )
 
+sapply(evenness_means[,c(-1,-2)], function(x) sd(x, na.rm = TRUE))
 
-# check evennes from allele data to see the corelation between precision and evenness!!
+# Calculate the correlation matrix
+cor_matrix <- cor(evenness_means[,c(-1,-2)])
 
+corrplot(cor_matrix, method = "circle", type = "upper", 
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black", 
+         order = "hclust") 
+
+#remove pielou a(same as shannon EH apparently) and Evar
+evenness_means <- evenness_means[!colnames(evenness_means) %in% c("mean_Pielou_J", "mean_Evar")]
+
+cor_matrix <- cor(evenness_means[,c(-1,-2)])
+
+corrplot(cor_matrix, method = "circle", type = "upper", 
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black", 
+         order = "hclust") 
+
+# merge with precision
+
+evenness_precision <- merge(evenness_means, combined_comparison_results[c("SampleID", "Precision", "unique_haplotypes_clean", "max_change")], by = c("SampleID", "max_change"))
+
+#mean_Shannon_EH looks good
+ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change))+
+  #geom_boxplot(alpha = 0.50, outlier.shape = NA) + 
+  geom_jitter(width = 0.1, size = 0.5, alpha = 0.15) + 
+  facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2) + 
+  geom_smooth(method = "lm", se = T)+
+  theme_minimal()
 ##
-
-
-
-
-
-
 
 
 

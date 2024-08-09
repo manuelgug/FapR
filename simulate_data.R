@@ -605,6 +605,68 @@ eval_adj_relabun
 ggsave("eval_adj_relabun.png", eval_adj_relabun, dpi = 300, width = 14, height = 10, bg = "white")
 
 
+# same plot as above but simpler and w/ 95% CI
+library(broom)
+library(boot)
+
+# Define a function to calculate the median of a sample
+median_ci <- function(data, indices) {
+  sample <- data[indices]
+  return(median(sample))
+}
+
+# Function to calculate median and CI for a given subset of data
+compute_median_ci <- function(data) {
+  # Perform bootstrapping
+  results <- boot(data$Precision, statistic = median_ci, R = 1000)
+  # Extract the 95% confidence intervals
+  ci <- boot.ci(results, type = "perc")
+  # Return a tibble with median and CI
+  tibble(
+    median_precision = median(data$Precision, na.rm = TRUE),
+    ci_lower = ci$percent[4],
+    ci_upper = ci$percent[5]
+  )
+}
+
+# Calculate median precision and 95% CI for each max_change of each SampleID
+median_precision_ci <- combined_comparison_results %>%
+  group_by(unique_haplotypes_clean, max_change) %>%
+  do(compute_median_ci(.))
+
+# Customize facet labels with "MOI = " and "noise = " prefixes
+facet_labels_median <- labeller(
+  unique_haplotypes_clean = function(x) paste("MOI = ", x)
+)
+
+# Create the plot
+median_precision_plot <- ggplot(median_precision_ci, aes(x = max_change, y = median_precision, color = unique_haplotypes_clean)) +
+  geom_point(size = 3) +  # Plot the median precision as points
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, size = 1) +  # Add error bars for CI
+  facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2, labeller = facet_labels_median) +  # Facet by unique_haplotypes_clean
+  theme_minimal(base_size = 12) +
+  ylim(0,1)+
+  labs(
+    x = "Noise",
+    y = "Median Precision",
+    title = "Median Precision and 95% CI"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
+  )
+
+median_precision_plot
+
+ggsave("median_CI_precision_plot.png", median_precision_plot, dpi = 300, width = 8, height = 6, bg = "white")
+
+
 
 # 3) check evenness from allele data to see the correlation between precision and evenness. is precision given by the evennes of the individual resmarker freqs?
 
@@ -710,7 +772,7 @@ facet_labels <- labeller(
 # Create the plot
 ev_pres_plot_shannon <- ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change)) +
   geom_jitter(width = 0.05, height = 0.05, size = 1, alpha = 0.2) + 
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "lm", color = "grey60") +
   facet_wrap(~ unique_haplotypes_clean + max_change, scales = "free_x", nrow = 4, labeller = facet_labels) +
   xlim(0, NA) +
   theme_minimal(base_size = 12) +
@@ -737,7 +799,7 @@ ggsave("evenness_presision_shannon_EH_plot.png", ev_pres_plot_shannon, dpi = 300
 # Create the plot
 ev_pres_plot_max_Freq <- ggplot(evenness_precision, aes(x = mean_max_freq, y = Precision, color = max_change)) +
   geom_jitter(width = 0.05, height = 0.05, size = 1, alpha = 0.2) + 
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "lm", color = "grey60") +
   facet_wrap(~ unique_haplotypes_clean + max_change, scales = "free_x", nrow = 4, labeller = facet_labels) +
   xlim(0, NA) +
   theme_minimal(base_size = 12) +
@@ -761,6 +823,9 @@ ev_pres_plot_max_Freq
 ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300, width = 20, height = 14, bg = "white")
 
 ##
+
+
+
 
 
 

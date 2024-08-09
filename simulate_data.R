@@ -707,6 +707,7 @@ ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_c
   facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2) + 
   geom_smooth(method = "lm", se = T)+
   theme_minimal()
+
 ##
 
 

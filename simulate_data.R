@@ -648,7 +648,8 @@ evenness_results_list <- lapply(SIM_DATA_list, function(df) {
       Simpson_E1_D = calculate_evenness_metrics(norm.reads.locus)$E1_D,
       Shannon_EH = calculate_evenness_metrics(norm.reads.locus)$EH,
       Berger_Parker = calculate_evenness_metrics(norm.reads.locus)$Berger_Parker,
-      Evar = calculate_evenness_metrics(norm.reads.locus)$Evar
+      Evar = calculate_evenness_metrics(norm.reads.locus)$Evar,
+      highest_freq = max(norm.reads.locus)
     )
 })
 
@@ -672,6 +673,7 @@ evenness_means <- evenness_results_list %>%
     mean_Shannon_EH = mean(Shannon_EH[is.finite(Shannon_EH)], na.rm = TRUE),
     mean_Berger_Parker = mean(Berger_Parker[is.finite(Berger_Parker)], na.rm = TRUE),
     mean_Evar = mean(Evar[is.finite(Evar)], na.rm = TRUE),
+    mean_max_freq = mean(highest_freq[highest_freq != 1], na.rm = TRUE), # Exclude values of 1
     max_change = first(max_change)
   )
 
@@ -696,17 +698,30 @@ corrplot(cor_matrix, method = "circle", type = "upper",
 # merge with precision
 evenness_precision <- merge(evenness_means, combined_comparison_results[c("SampleID", "unique_haplotypes_clean", "Precision", "max_change")], by = c("SampleID", "max_change"))
 
-# Customize facet labels with "MOI: " prefix
-facet_labels <- as_labeller(function(x) paste("MOI:", x))
+
+#PLOTS
+
+# Customize facet labels with "MOI = " and "noise = " prefixes
+facet_labels <- labeller(
+  unique_haplotypes_clean = function(x) paste("MOI = ", x),
+  max_change = function(x) paste("noise = ", x)
+)
 
 # Create the plot
-ev_pres_plot <- ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change)) +
+ev_pres_plot_shannon <- ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precision, color = max_change)) +
   geom_jitter(width = 0.05, height = 0.05, size = 1, alpha = 0.2) + 
   geom_smooth(method = "lm") +
-  facet_wrap(~ unique_haplotypes_clean, scales = "free_x", nrow = 2, labeller = facet_labels) +
-  theme_minimal() +
+  facet_wrap(~ unique_haplotypes_clean + max_change, scales = "free_x", nrow = 4, labeller = facet_labels) +
+  xlim(0, NA) +
+  theme_minimal(base_size = 12) +
   theme(
-    strip.text = element_text(size = 14)  # Increase facet title size
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
   ) +
   labs(
     x = "Mean Shannon's Equitability Index (EH)",
@@ -714,9 +729,36 @@ ev_pres_plot <- ggplot(evenness_precision, aes(x = mean_Shannon_EH, y = Precisio
     title = ""
   )
 
-ev_pres_plot
+ev_pres_plot_shannon
 
-ggsave("evenness_presicion_plot.png", ev_pres_plot, dpi = 300, width = 14, height = 10, bg = "white")
+ggsave("evenness_presision_shannon_EH_plot.png", ev_pres_plot_shannon, dpi = 300, width = 20, height = 14, bg = "white")
+
+
+# Create the plot
+ev_pres_plot_max_Freq <- ggplot(evenness_precision, aes(x = mean_max_freq, y = Precision, color = max_change)) +
+  geom_jitter(width = 0.05, height = 0.05, size = 1, alpha = 0.2) + 
+  geom_smooth(method = "lm") +
+  facet_wrap(~ unique_haplotypes_clean + max_change, scales = "free_x", nrow = 4, labeller = facet_labels) +
+  xlim(0, NA) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Mean Major Allele Frequency",
+    y = "Precision",
+    title = ""
+  )
+
+ev_pres_plot_max_Freq
+
+ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300, width = 20, height = 14, bg = "white")
 
 ##
 

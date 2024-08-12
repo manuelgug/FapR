@@ -258,7 +258,7 @@ for (max_change in max_change_values) {
 ##### PHASING WITH FAPR ######
 ##############################
 
-FAPR <- function(SIM_DATA, COI_SIM_DATA,  verbose = TRUE) {
+FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
   
   # Initialize the final results data frame
   RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), 
@@ -284,8 +284,19 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA,  verbose = TRUE) {
     sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
     sID$norm.reads.locus <- round(sID$norm.reads.locus, 4)
     
+    
     # 2) Select sample's COI
-    COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
+    
+    if (!is.null(COI_SIM_DATA)){  #if no COI provided, use max number of alleles from the amplicon sof interest
+      
+      COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
+      
+    } else { 
+      
+      COI <- max(table(sID$resmarker)) #else, use coi file
+      
+    }
+    
     
     # 3) Format data
     new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow = 1))
@@ -605,6 +616,7 @@ eval_adj_relabun
 ggsave("eval_adj_relabun.png", eval_adj_relabun, dpi = 300, width = 14, height = 10, bg = "white")
 
 
+
 # same plot as above but simpler and w/ 95% CI
 library(broom)
 library(boot)
@@ -618,7 +630,7 @@ median_ci <- function(data, indices) {
 # Function to calculate median and CI for a given subset of data
 compute_median_ci <- function(data) {
   # Perform bootstrapping
-  results <- boot(data$Precision, statistic = median_ci, R = 1000)
+  results <- boot(data$Precision, statistic = median_ci, R = 10000)
   # Extract the 95% confidence intervals
   ci <- boot.ci(results, type = "perc")
   # Return a tibble with median and CI
@@ -828,13 +840,52 @@ ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300,
 
 
 
+### EXPLORE A LITTLE BIT MORE THE SIMULATED DATASETS TO THINK WHAT TO DO TO IMPROVE THE METHOD IN TERMS OF REDUCING NOISE:
+
+# Iterate over the list and print the rows where SampleID is "shit_sample_933_4"
+for (i in seq_along(SIM_DATA_list)) {
+  df <- SIM_DATA_list[[i]]
+  
+  if ("SampleID" %in% colnames(df)) {
+    sample_rows <- df[df$SampleID == "shit_sample_933_3", ]
+    
+    if (nrow(sample_rows) > 0) {
+      print(paste(names(SIM_DATA_list)[i]))
+      print(sample_rows)
+    }
+  }
+}
+
+
+
+# EXPLORE REAL CONTROL DATA
+control_data <- read.csv("CONTROLS_ALL.csv")
+
+control_data$resmarker <- paste(control_data$Gene, control_data$CodonID, sep = "_")
+
+control_data <- control_data[control_data$resmarker %in% c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108"),] #keep resmarkers of interest
+
+#keep amp with the least reads when there are multiple for the same resmarker (applies for dhps_581 which is amplified as 2 amplicons. the one with less reads is the good one)
+control_data <- control_data %>%
+  group_by(SampleID,resmarker, AA) %>%
+  filter(Reads == min(Reads)) %>% 
+  ungroup() 
+
+#calculate norm.reads.locus
+ccc <- control_data %>%
+  group_by(SampleID, resmarker) %>%
+  mutate(norm.reads.locus = Reads / sum(Reads)) %>%
+  ungroup() %>%
+  arrange(SampleID, resmarker) 
 
 
 
 
+# test
+test <- ccc[ccc$SampleID == "TS2-TC1-10K",]
+test_coi <- data.frame(SampleID = "TS2-TC1-10K", COI = 3)
 
-
-
+FAPR(test)
 
 
 

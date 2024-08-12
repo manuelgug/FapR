@@ -82,7 +82,7 @@ for (n in c(2:max_haplos)){
     
     ############# GENERATE HAPLOTYPES (((NAMES DON'T MEAN ANYTHING!! IT'S JUST FOR FAPR COMPATBITLITY)))
     
-    res_loci <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51","dhfr_59", "dhfr_108")
+    res_loci <- c("HAP1", "HAP2", "HAP3", "HAP4", "HAP5","HAP6", "HAP7")
     res_variants <- c("A", "B", "C", "D", "E", "F", "G")
     
     genos <- data.frame()
@@ -105,9 +105,9 @@ for (n in c(2:max_haplos)){
     }
     
     #make the last locus always n_haplos number of variants 
-    genos <- genos[genos$locus != "dhfr_108",]
-    dhfr_108 <- as.data.frame(cbind(locus = "dhfr_108", genotype = res_variants[1:n_haplos]))
-    genos<- rbind(genos, dhfr_108)
+    genos <- genos[genos$locus != "HAP7",]
+    HAP7 <- as.data.frame(cbind(locus = "HAP7", genotype = res_variants[1:n_haplos]))
+    genos<- rbind(genos, HAP7)
     
     ############# MERGE HAPLOTYPES WITH FREQUENCIES
     
@@ -127,7 +127,7 @@ for (n in c(2:max_haplos)){
       }
     }
     
-    colnames(genos) <- c("resmarker", "AA", "norm.reads.locus")
+    colnames(genos) <- c("resmarker", "Microhaplotype", "norm.reads.locus")
     
     genos <- cbind(SampleID = paste0("shit_sample_", i,"_", n_haplos), genos)
     
@@ -186,8 +186,8 @@ introduce_noise <- function(data, max_change = 0, min_change = 0) {
   # Group data by SampleID and resmarker
   multi_aa_data <- data %>%
     group_by(SampleID, resmarker) %>%
-    # Filter for rows with more than one AA
-    filter(n_distinct(AA) > 1) %>%
+    # Filter for rows with more than one Microhaplotype
+    filter(n_distinct(Microhaplotype) > 1) %>%
     ungroup() %>%
     mutate(
       # Generate random factors to multiply the norm.reads.locus values
@@ -205,9 +205,9 @@ introduce_noise <- function(data, max_change = 0, min_change = 0) {
     mutate(norm.reads.locus = norm.reads.locus / sum_norm_reads) %>%
     select(-sum_norm_reads)
   
-  # Filter rows where there is only one AA and combine with the noisy data
+  # Filter rows where there is only one Microhaplotype and combine with the noisy data
   noisy_data <- bind_rows(
-    data %>% group_by(SampleID, resmarker) %>% filter(n_distinct(AA) == 1),
+    data %>% group_by(SampleID, resmarker) %>% filter(n_distinct(Microhaplotype) == 1),
     multi_aa_data
   )
   
@@ -228,9 +228,9 @@ for (max_change in max_change_values) {
   # Apply the introduce_noise function to SIM_DATA
   SIM_DATA_noisy <- introduce_noise(SIM_DATA, max_change = max_change, min_change = min_change)
   
-  # Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and AA
-  indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"), 
-                   apply(SIM_DATA_noisy[c("SampleID", "resmarker", "AA")], 1, paste, collapse = "_"))
+  # Get the corresponding indices of rows in noisy_SIM_DATA based on SampleID, resmarker, and Microhaplotype
+  indices <- match(apply(SIM_DATA[c("SampleID", "resmarker", "Microhaplotype")], 1, paste, collapse = "_"), 
+                   apply(SIM_DATA_noisy[c("SampleID", "resmarker", "Microhaplotype")], 1, paste, collapse = "_"))
   
   # Order noisy_SIM_DATA according to the indices
   SIM_DATA_noisy <- SIM_DATA_noisy[indices, ]
@@ -260,11 +260,17 @@ for (max_change in max_change_values) {
 
 FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
   
-  # Initialize the final results data frame
-  RESULTS_FINAL <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), 
-                              dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), 
-                              dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), 
-                              HAPLO_FREQ_RECALC = numeric(0))
+  unique_resmarkers <- unique(SIM_DATA$resmarker)
+  
+  RESULTS_FINAL <- data.frame(
+    SampleID = character(0), 
+    matrix(character(0), nrow = 0, ncol = length(unique_resmarkers)),
+    HAPLO_FREQ = numeric(0), 
+    HAPLO_FREQ_RECALC = numeric(0)
+  )
+  
+  # Rename the columns to include the resmarkers
+  colnames(RESULTS_FINAL)[2:(1 + length(unique_resmarkers))] <- unique_resmarkers
   
   # Extract unique sample names
   unique_samples <- unique(SIM_DATA$SampleID)
@@ -275,10 +281,18 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
     i_counter <- 0
     MOST_LIKELY_HAPLOS <- data.frame()
     MOST_LIKELY_HAPLOS_FREQS <- data.frame()
-    RESULTS <- data.frame(SampleID = character(0), dhps_431 = character(0), dhps_437 = character(0), 
-                          dhps_540 = character(0), dhps_581 = character(0), dhfr_51 = character(0), 
-                          dhfr_59 = character(0), dhfr_108 = character(0), HAPLO_FREQ = numeric(0), 
-                          HAPLO_FREQ_RECALC = numeric(0))
+
+    unique_resmarkers <- unique(SIM_DATA$resmarker)
+    
+    RESULTS <- data.frame(
+      SampleID = character(0), 
+      matrix(character(0), nrow = 0, ncol = length(unique_resmarkers)),
+      HAPLO_FREQ = numeric(0), 
+      HAPLO_FREQ_RECALC = numeric(0)
+    )
+    
+    # Rename the columns to include the resmarkers
+    colnames(RESULTS_FINAL)[2:(1 + length(unique_resmarkers))] <- unique_resmarkers
     
     # 1) Select sample
     sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
@@ -301,7 +315,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
     # 3) Format data
     new_df <- data.frame(matrix(ncol = length(sID$resmarker), nrow = 1))
     colnames(new_df) <- sID$resmarker
-    new_df[1, ] <- sID$AA
+    new_df[1, ] <- sID$Microhaplotype
     new_df <- rbind(new_df, sID$norm.reads.locus)
     
     unique_resmarkers <- unique(colnames(new_df))
@@ -356,24 +370,11 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
 
     ########################################################3
     
-    alleles <- list(resulting_dataframes$dhps_431$dhps_431,
-                    resulting_dataframes$dhps_437$dhps_437, 
-                    resulting_dataframes$dhps_540$dhps_540, 
-                    resulting_dataframes$dhps_581$dhps_581,
-                    resulting_dataframes$dhfr_51$dhfr_51,
-                    resulting_dataframes$dhfr_59$dhfr_59,
-                    resulting_dataframes$dhfr_108$dhfr_108) # Order is important
-    
-    freqs <- list(resulting_dataframes$dhps_431$norm.reads.locus,
-                  resulting_dataframes$dhps_437$norm.reads.locus, 
-                  resulting_dataframes$dhps_540$norm.reads.locus, 
-                  resulting_dataframes$dhps_581$norm.reads.locus,
-                  resulting_dataframes$dhfr_51$norm.reads.locus,
-                  resulting_dataframes$dhfr_59$norm.reads.locus,
-                  resulting_dataframes$dhfr_108$norm.reads.locus) # Order is important
-    
-    comb_alleles <- expand.grid(alleles)
-    comb_freqs <- expand.grid(freqs)
+    alleles <- lapply(resulting_dataframes, function(df) df[[1]])
+    freqs <- lapply(resulting_dataframes, function(df) df[[2]])
+  
+    comb_alleles_matrix <- expand.grid(alleles)
+    comb_freqs_matrix <- expand.grid(freqs)
     
     # Check if comb_alleles is empty, and if so, skip to the next sample
     if (nrow(comb_alleles) == 0) {
@@ -381,10 +382,6 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
       next
     }
     
-    comb_alleles_matrix <- as.data.frame(comb_alleles)
-    colnames(comb_alleles_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108")
-    comb_freqs_matrix <- as.data.frame(comb_freqs)
-    colnames(comb_freqs_matrix) <- c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108")
     
     # 4) Phase
     if (dim(comb_alleles_matrix)[1] != 1) { # Skip monoallelic samples as they make the loop crash
@@ -392,11 +389,8 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
       while (COI > i_counter) {
         i_counter <- i_counter + 1
         
-        # Calculate probs if all haplotypes were present
-        comb_freqs_matrix$probs <- comb_freqs_matrix$dhps_431 * comb_freqs_matrix$dhps_437 * 
-          comb_freqs_matrix$dhps_540 * comb_freqs_matrix$dhps_581 * 
-          comb_freqs_matrix$dhfr_51 * comb_freqs_matrix$dhfr_59 * 
-          comb_freqs_matrix$dhfr_108
+        comb_freqs_matrix$probs <- Reduce(`*`, comb_freqs_matrix[unique_resmarkers])
+        
         highest_prob <- as.numeric(which.max(comb_freqs_matrix$probs))
         
         # Extract most probable haplo
@@ -409,12 +403,12 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
         # Append most likely haplo
         MOST_LIKELY_HAPLOS <- rbind(MOST_LIKELY_HAPLOS, comb_alleles_matrix[highest_prob, ])
         temp <- comb_freqs_matrix[highest_prob, ]
-        temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:7])
+        temp$HAPLO_FREQ <- min(comb_freqs_matrix[highest_prob, 1:length(unique_resmarkers)])
         temp$HAPLO_FREQ_RECALC <- NA
         MOST_LIKELY_HAPLOS_FREQS <- rbind(MOST_LIKELY_HAPLOS_FREQS, temp)
         
         # Select minimum allele freq from the most likely haplotype
-        min_allele_from_most_likely_hap <- min(comb_freqs_matrix[highest_prob, 1:7])
+        min_allele_from_most_likely_hap <- min(comb_freqs_matrix[highest_prob, 1:length(unique_resmarkers)])
         
         # Boolean mask to detect alleles that are present on the most likely haplotype
         row_to_match <- as.matrix(comb_alleles_matrix[highest_prob, ])
@@ -423,7 +417,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
         })
         
         # Subtract min_allele_from_most_likely_hap from the cells where mask is TRUE and ignore the specified column
-        comb_freqs_matrix <- comb_freqs_matrix[, 1:7]
+        comb_freqs_matrix <- comb_freqs_matrix[, 1:length(unique_resmarkers)]
         comb_freqs_matrix[mask] <- comb_freqs_matrix[mask] - min_allele_from_most_likely_hap
         
         # Recalculate proportions of final haplos
@@ -443,10 +437,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
   }
   
   # Add haplotype name
-  RESULTS_FINAL$haplotype <- paste(RESULTS_FINAL$dhps_431, RESULTS_FINAL$dhps_437, 
-                                   RESULTS_FINAL$dhps_540, RESULTS_FINAL$dhps_581, 
-                                   RESULTS_FINAL$dhfr_51, RESULTS_FINAL$dhfr_59, 
-                                   RESULTS_FINAL$dhfr_108, sep = "_")
+  RESULTS_FINAL$haplotype  <- apply(RESULTS_FINAL[, 2:(ncol(RESULTS_FINAL)-2)], 1, paste, collapse = "_")
   
   return(RESULTS_FINAL)
 }
@@ -859,17 +850,11 @@ for (i in seq_along(SIM_DATA_list)) {
 
 
 # EXPLORE REAL CONTROL DATA
-control_data <- read.csv("../../combined_mixture_controls_resmarker_table_16_17_21_22_27_manuel.csv")
+control_data <- read.csv("../../combined_mixture_controls_resmarker_microhap_16_17_21_22_27_manuel.csv")
 
-control_data$resmarker <- paste(control_data$Gene, control_data$CodonID, sep = "_")
+control_data$resmarker <- paste(control_data$Gene, control_data$MicrohapIndex, sep = "_")
 
-control_data <- control_data[control_data$resmarker %in% c("dhps_431", "dhps_437", "dhps_540", "dhps_581", "dhfr_51", "dhfr_59", "dhfr_108"),] #keep resmarkers of interest
-
-#keep amp with the least reads when there are multiple for the same resmarker (applies for dhps_581 which is amplified as 2 amplicons. the one with less reads is the good one)
-control_data <- control_data %>%
-  group_by(SampleID,resmarker,AA) %>%
-  filter(Reads == min(Reads)) %>% 
-  ungroup() 
+control_data <- control_data[control_data$resmarker %in% c("dhps_431/436/437", "dhps_540/581", "dhfr_16/51/59", "dhfr_108/164"),] #keep resmarkers of interest
 
 #calculate norm.reads.locus
 ccc <- control_data %>%
@@ -878,14 +863,7 @@ ccc <- control_data %>%
   ungroup() %>%
   arrange(SampleID, resmarker) 
 
-
-
-
-# test
-test <- ccc[ccc$SampleID == "TS2-TC1-1K",]
-test_coi <- data.frame(SampleID = "TS2-TC1-1K", COI = 3)
-
-r <- FAPR(test)
+r <- FAPR(ccc)
 
 r <- r[r$HAPLO_FREQ_RECALC != 1,]
 r

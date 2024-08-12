@@ -902,7 +902,7 @@ hist(o_means$mean_Shannon_EH)
 library(progress)
 library(fs)
 
-directory_path <- "../../GENSTRUCT_ALL_jun7_POLISH_EVERYTHING_CLEAN_CODE_Only/results_v0.1.8_RESMARKERS_FIX/"
+directory_path <- "../FILTERED_DATA_FROM_CLUSTER/"
 data_all <- data.frame()
 
 pb <- progress_bar$new(
@@ -969,15 +969,24 @@ o_means <- o %>%
 o_means<- o_means[!o_means$max_alleles == 1,]
 
 hist(o_means$mean_Shannon_EH)
-hist(o_means$max_alleles)
+hist(o_means$max_alleles, breaks = 5)
 
 
-cor.test(o_means$max_alleles, o_means$mean_Shannon_EH)
+# Perform the correlation test
+cor_test <- cor.test(o_means$max_alleles, o_means$mean_Shannon_EH, method = "spearman")
 
-ggplot(o_means, aes(x = max_alleles, y = mean_Shannon_EH))+
-  geom_jitter(width = 0.1, alpha = 0.3, color = "gray40", size = 4)+
-  theme_minimal()+
-  geom_smooth(method = "lm", color = "red", fill = "pink2")
+# Extract the correlation coefficient and p-value
+cor_coef <- round(cor_test$estimate, 2)
+p_val <- formatC(cor_test$p.value, format = "e", digits = 2)
+
+# Create the plot
+ggplot(o_means, aes(x = max_alleles, y = mean_Shannon_EH)) +
+  geom_jitter(width = 0.1, height = 0, alpha = 0.3, color = "gray40", size = 4) +
+  theme_minimal() +
+  geom_smooth(method = "lm", color = "red", fill = "pink2") +
+  annotate("text", x = Inf, y = -Inf, label = paste("r =", cor_coef, "\n", "p =", p_val),
+           hjust = 1.1, vjust = -1.1, size = 4, color = "black")
+
 
 
 

@@ -840,6 +840,7 @@ ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300,
 
 
 
+
 ### EXPLORE A LITTLE BIT MORE THE SIMULATED DATASETS TO THINK WHAT TO DO TO IMPROVE THE METHOD IN TERMS OF REDUCING NOISE:
 
 # Iterate over the list and print the rows where SampleID is "shit_sample_933_4"
@@ -857,9 +858,8 @@ for (i in seq_along(SIM_DATA_list)) {
 }
 
 
-
 # EXPLORE REAL CONTROL DATA
-control_data <- read.csv("CONTROLS_ALL.csv")
+control_data <- read.csv("../../combined_mixture_controls_resmarker_table_16_17_21_22_27_manuel.csv")
 
 control_data$resmarker <- paste(control_data$Gene, control_data$CodonID, sep = "_")
 
@@ -867,7 +867,7 @@ control_data <- control_data[control_data$resmarker %in% c("dhps_431", "dhps_437
 
 #keep amp with the least reads when there are multiple for the same resmarker (applies for dhps_581 which is amplified as 2 amplicons. the one with less reads is the good one)
 control_data <- control_data %>%
-  group_by(SampleID,resmarker, AA) %>%
+  group_by(SampleID,resmarker,AA) %>%
   filter(Reads == min(Reads)) %>% 
   ungroup() 
 
@@ -882,10 +882,42 @@ ccc <- control_data %>%
 
 
 # test
-test <- ccc[ccc$SampleID == "TS2-TC1-10K",]
-test_coi <- data.frame(SampleID = "TS2-TC1-10K", COI = 3)
+test <- ccc[ccc$SampleID == "TS2-TC1-1K",]
+test_coi <- data.frame(SampleID = "TS2-TC1-1K", COI = 3)
 
-FAPR(test)
+r <- FAPR(test)
+
+r <- r[r$HAPLO_FREQ_RECALC != 1,]
+r
+
+
+unique_samples = "TS2-TC1-1K"
+
+sample = "TS2-TC1-1K"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

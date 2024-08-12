@@ -849,11 +849,10 @@ for (i in seq_along(SIM_DATA_list)) {
 }
 
 
-# EXPLORE REAL CONTROL DATA
+# EXPLORE REAL CONTROL DATA (controls are not entirely trustable according to Andrés. anyways...)
 control_data <- read.csv("../../combined_mixture_controls_resmarker_microhap_16_17_21_22_27_manuel.csv")
 
 control_data$resmarker <- paste(control_data$Gene, control_data$MicrohapIndex, sep = "_")
-
 control_data <- control_data[control_data$resmarker %in% c("dhps_431/436/437", "dhps_540/581", "dhfr_16/51/59", "dhfr_108/164"),] #keep resmarkers of interest
 
 #calculate norm.reads.locus
@@ -865,31 +864,120 @@ ccc <- control_data %>%
 
 r <- FAPR(ccc)
 
-r <- r[r$HAPLO_FREQ_RECALC != 1,]
 r
 
+# calculate evenness metrics
+o<- ccc %>%
+  group_by(SampleID, resmarker) %>%
+  summarise(
+    Pielou_J = calculate_evenness_metrics(norm.reads.locus)$J,
+    Simpson_E1_D = calculate_evenness_metrics(norm.reads.locus)$E1_D,
+    Shannon_EH = calculate_evenness_metrics(norm.reads.locus)$EH,
+    Berger_Parker = calculate_evenness_metrics(norm.reads.locus)$Berger_Parker,
+    Evar = calculate_evenness_metrics(norm.reads.locus)$Evar,
+    highest_freq = max(norm.reads.locus)
+  )
 
-unique_samples = "TS2-TC1-1K"
+#evenness across haplos
+o_means <- o %>%
+  group_by(SampleID) %>%
+  summarise(
+    mean_Pielou_J = mean(Pielou_J[is.finite(Pielou_J)], na.rm = TRUE),
+    mean_Simpson_E1_D = mean(Simpson_E1_D[is.finite(Simpson_E1_D)], na.rm = TRUE),
+    mean_Shannon_EH = mean(Shannon_EH[is.finite(Shannon_EH)], na.rm = TRUE),
+    mean_Berger_Parker = mean(Berger_Parker[is.finite(Berger_Parker)], na.rm = TRUE),
+    mean_Evar = mean(Evar[is.finite(Evar)], na.rm = TRUE),
+    mean_max_freq = mean(highest_freq[highest_freq != 1], na.rm = TRUE), # Exclude values of 1
+  )
 
-sample = "TS2-TC1-1K"
+hist(o_means$mean_Shannon_EH)
+
+## EXPLORE REAL DATA:
+# 1) what's the MOI (max alleles) from haplos of interest?
+# 1) how even are actual samples for the haplos of interest?
+# 2) is evenness correlated with MOI (max alleles in amps of interest)? 
 
 
+#import all real data
+library(progress)
+library(fs)
+
+directory_path <- "../../GENSTRUCT_ALL_jun7_POLISH_EVERYTHING_CLEAN_CODE_Only/results_v0.1.8_RESMARKERS_FIX/"
+data_all <- data.frame()
+
+pb <- progress_bar$new(
+  format = "[:bar] :percent ETA: :eta",
+  total = length(dir_ls(path = directory_path, regexp = "_RESULTS_v0.1.8_FILTERED$"))
+)
+
+for (folder_path in dir_ls(path = directory_path, regexp = "_RESULTS_v0.1.8_FILTERED$")) {
+  pb$tick() 
+  
+  folder_name <- path_file(folder_path)
+  file_path <- file.path(folder_path, "resmarker_microhap_table_global_max_0_filtered.csv")
+  
+  cat("\n")
+  print(folder_name)
+  
+  if (file.exists(file_path)) {
+    data <- read.csv(file_path)
+    data$run <- sub("^.*/([^/]+)/[^/]+$", "\\1", file_path)
+    data_all <- rbind(data_all, data)
+  }
+}
+
+data_all$run <- sub("_RESULTS_v0.1.8_FILTERED$", "", data_all$run)
+
+# Create resmarker column
+data_all$resmarker <- paste(data_all$Gene, data_all$MicrohapIndex, sep = "_")
+
+# Keep only resmarkers of interest
+data_all <- data_all[data_all$resmarker %in% c("dhps_431/436/437", "dhps_540/581", "dhfr_16/51/59", "dhfr_108/164"),]
+
+#run fapr just for fn
+r_real_data <- FAPR(data_all[,c(-10, -11)])
+
+r
+
+# calculate evenness metrics
+o <- data_all %>%
+  group_by(SampleID, resmarker) %>%
+  summarise(
+    Pielou_J = calculate_evenness_metrics(norm.reads.locus)$J,
+    Simpson_E1_D = calculate_evenness_metrics(norm.reads.locus)$E1_D,
+    Shannon_EH = calculate_evenness_metrics(norm.reads.locus)$EH,
+    Berger_Parker = calculate_evenness_metrics(norm.reads.locus)$Berger_Parker,
+    Evar = calculate_evenness_metrics(norm.reads.locus)$Evar,
+    highest_freq = max(norm.reads.locus),
+    max_alleles = max(n.alleles)
+  )
+
+#evenness across haplos
+o_means <- o %>%
+  group_by(SampleID) %>%
+  summarise(
+    mean_Pielou_J = mean(Pielou_J[is.finite(Pielou_J)], na.rm = TRUE),
+    mean_Simpson_E1_D = mean(Simpson_E1_D[is.finite(Simpson_E1_D)], na.rm = TRUE),
+    mean_Shannon_EH = mean(Shannon_EH[is.finite(Shannon_EH)], na.rm = TRUE),
+    mean_Berger_Parker = mean(Berger_Parker[is.finite(Berger_Parker)], na.rm = TRUE),
+    mean_Evar = mean(Evar[is.finite(Evar)], na.rm = TRUE),
+    mean_max_freq = mean(highest_freq[highest_freq != 1], na.rm = TRUE), # Exclude values of 1
+    max_alleles = max(max_alleles)
+  )
+
+#remove monoallelic samples
+o_means<- o_means[!o_means$max_alleles == 1,]
+
+hist(o_means$mean_Shannon_EH)
+hist(o_means$max_alleles)
 
 
+cor.test(o_means$max_alleles, o_means$mean_Shannon_EH)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+ggplot(o_means, aes(x = max_alleles, y = mean_Shannon_EH))+
+  geom_jitter(width = 0.1, alpha = 0.3, color = "gray40", size = 4)+
+  theme_minimal()+
+  geom_smooth(method = "lm", color = "red", fill = "pink2")
 
 
 

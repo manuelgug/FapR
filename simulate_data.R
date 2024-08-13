@@ -44,10 +44,13 @@ generate_numbers_summing_to_1 <- function(n) {
 
 
 ##### GENERATE DATA
-max_haplos <- 5 #from real data
+
+max_haplos <- 5 # from real data
+max_amps <- 4 # from real data
+
 individuals <- 1000
-res_loci <- c("HAP1", "HAP2", "HAP3", "HAP4")
-res_variants <- c("A", "B", "C", "D", "E", "F")
+res_loci <- paste0("HAP", seq(1, max_amps))
+res_variants <- c(LETTERS[1:max_haplos])
 
 SIM_DATA <- list()
 

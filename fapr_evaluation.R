@@ -90,9 +90,9 @@ for (i in seq_along(FAPR_RESULTS_list)) {
                                    unique_haplotypes_FAPR = integer(),
                                    TP = integer(),
                                    FP = integer(),
-                                   #FN = integer(),
                                    Precision = numeric(),
                                    FDR = numeric(),
+                                   RMSE = numeric(),  # Add RMSE column
                                    stringsAsFactors = FALSE)
   
   # Get the current FAPR_RESULTS_list element
@@ -108,23 +108,32 @@ for (i in seq_along(FAPR_RESULTS_list)) {
   for (sample in common_samples) {
     
     # Subset the data for the current sample
-    clean_haplotypes <- unique(clean_data$haplotype[clean_data$SampleID == sample])
-    FAPR_haplotypes <- unique(FAPR_results$haplotype[FAPR_results$SampleID == sample])
+    clean_sample <- clean_data[clean_data$SampleID == sample, ]
+    FAPR_sample <- FAPR_results[FAPR_results$SampleID == sample, ]
+    
+    clean_haplotypes <- clean_sample$haplotype
+    FAPR_haplotypes <- FAPR_sample$haplotype
     
     # Count unique haplotypes
-    unique_haplotypes_clean <- length(clean_haplotypes)
-    unique_haplotypes_FAPR <- length(FAPR_haplotypes)
+    unique_haplotypes_clean <- length(unique(clean_haplotypes))
+    unique_haplotypes_FAPR <- length(unique(FAPR_haplotypes))
     
     # Count the number of intersecting haplotypes (True Positives)
     TP <- length(intersect(clean_haplotypes, FAPR_haplotypes))
     
     # Calculate False Positives and False Negatives
     FP <- length(setdiff(FAPR_haplotypes, clean_haplotypes))
-    #FN <- length(setdiff(clean_haplotypes, FAPR_haplotypes))
     
     # Calculate Precision and False Discovery Rate (FDR)
     Precision <- ifelse((TP + FP) > 0, TP / (TP + FP), NA)
     FDR <- ifelse((TP + FP) > 0, FP / (TP + FP), NA)
+    
+    # Calculate RMSE between HAPLO_FREQ_RECALC of matching haplotypes
+    merged_data <- merge(clean_sample[, c("haplotype", "HAPLO_FREQ_RECALC")], 
+                         FAPR_sample[, c("haplotype", "HAPLO_FREQ_RECALC")], 
+                         by = "haplotype", suffixes = c("_expected", "_observed"))
+    
+    RMSE <- sqrt(mean((merged_data$HAPLO_FREQ_RECALC_observed - merged_data$HAPLO_FREQ_RECALC_expected)^2, na.rm = TRUE))
     
     # Store the results in the data frame
     comparison_results <- rbind(comparison_results, 
@@ -135,9 +144,11 @@ for (i in seq_along(FAPR_RESULTS_list)) {
                                            FP = FP,
                                            Precision = Precision,
                                            FDR = FDR,
+                                           RMSE = RMSE,
                                            stringsAsFactors = FALSE))
   }
-
+  
+  # Store the results for the current FAPR_RESULTS_list element
   comparison_results_list[[element_name]] <- comparison_results
 }
 
@@ -238,7 +249,7 @@ ggsave("median_CI_precision_plot.png", median_precision_plot, dpi = 300, width =
 
 
 
-# EVALUATION 3:  ANALYSE EVENNESS -----------
+# EVALUATION 3:  ANALYZE EVENNESS -----------
 
 # 3) check evenness from allele data to see the correlation between precision and evenness. is precision given by the evennes of the individual resmarker freqs?
 
@@ -364,4 +375,5 @@ ev_pres_plot_max_Freq
 
 ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300, width = 20, height = 14, bg = "white")
 
-##
+# EVALUATION 5:  RMSE OF FREQ FROM TP -----------
+

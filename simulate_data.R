@@ -377,7 +377,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL,  verbose = TRUE) {
     comb_freqs_matrix <- expand.grid(freqs)
     
     # Check if comb_alleles is empty, and if so, skip to the next sample
-    if (nrow(comb_alleles) == 0) {
+    if (nrow(comb_alleles_matrix) == 0) {
       cat("Skipping sample", sample, "\n")
       next
     }
@@ -935,12 +935,12 @@ data_all$resmarker <- paste(data_all$Gene, data_all$MicrohapIndex, sep = "_")
 data_all <- data_all[data_all$resmarker %in% c("dhps_431/436/437", "dhps_540/581", "dhfr_16/51/59", "dhfr_108/164"),]
 
 #run fapr just for fn
-r_real_data <- FAPR(data_all[,c(-10, -11)])
+r_real_data <- FAPR(data_all)
 
 r
 
 # calculate evenness metrics
-o <- data_all %>%
+evenness_real_data <- data_all %>%
   group_by(SampleID, resmarker) %>%
   summarise(
     Pielou_J = calculate_evenness_metrics(norm.reads.locus)$J,
@@ -953,7 +953,7 @@ o <- data_all %>%
   )
 
 #evenness across haplos
-o_means <- o %>%
+evenness_real_data_means <- evenness_real_data %>%
   group_by(SampleID) %>%
   summarise(
     mean_Pielou_J = mean(Pielou_J[is.finite(Pielou_J)], na.rm = TRUE),
@@ -966,21 +966,21 @@ o_means <- o %>%
   )
 
 #remove monoallelic samples
-o_means<- o_means[!o_means$max_alleles == 1,]
+evenness_real_data_means<- evenness_real_data_means[!evenness_real_data_means$max_alleles == 1,]
 
-hist(o_means$mean_Shannon_EH)
-hist(o_means$max_alleles, breaks = 5)
+hist(evenness_real_data_means$mean_Shannon_EH)
+hist(evenness_real_data_means$max_alleles, breaks = 5)
 
 
 # Perform the correlation test
-cor_test <- cor.test(o_means$max_alleles, o_means$mean_Shannon_EH, method = "spearman")
+cor_test <- cor.test(evenness_real_data_means$max_alleles, evenness_real_data_means$mean_Shannon_EH, method = "spearman")
 
 # Extract the correlation coefficient and p-value
 cor_coef <- round(cor_test$estimate, 2)
 p_val <- formatC(cor_test$p.value, format = "e", digits = 2)
 
 # Create the plot
-ggplot(o_means, aes(x = max_alleles, y = mean_Shannon_EH)) +
+ggplot(evenness_real_data_means, aes(x = max_alleles, y = mean_Shannon_EH)) +
   geom_jitter(width = 0.1, height = 0, alpha = 0.3, color = "gray40", size = 4) +
   theme_minimal() +
   geom_smooth(method = "lm", color = "red", fill = "pink2") +
@@ -988,7 +988,80 @@ ggplot(o_means, aes(x = max_alleles, y = mean_Shannon_EH)) +
            hjust = 1.1, vjust = -1.1, size = 4, color = "black")
 
 
+# calculate error found between alleles from amplicons with the same amount of alleles. am i being too harsh wiwh the SIM_DATA? can i make an educated guess on what to expect?
 
+#subset samples with > 1 multiallelic loci
+many_multiallelic_loci_samples <- data_all %>%
+  group_by(SampleID) %>%
+  filter(sum(n.alleles > 1) > 2) %>%  # Filter SampleIDs with more than 2 values > 1 in n.alleles
+  arrange(SampleID, resmarker, desc(norm.reads.locus)) %>%  # Order by SampleID, resmarker, and norm.reads.locus (descending)
+  ungroup()  # Ungroup the data
+
+#how much does the amplicons of interest vary in multiallelic samples?
+mean_alleles <- many_multiallelic_loci_samples %>%
+  group_by(resmarker) %>%
+  summarise(mean_alleles = mean(n.alleles),
+            sd = sd(n.alleles))
+
+ggplot(mean_alleles, aes(x = resmarker, y = mean_alleles, fill = resmarker)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_alleles - sd, ymax = mean_alleles + sd), width = 0.2) + 
+  theme_minimal() +
+  labs(
+    title = "",
+    x = "Resmarker Haplo",
+    y = "Mean Alleles in Multiallelic Samples"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  
+    legend.position = "none" 
+  )
+
+#remove monoallelic loci from each sample
+many_multiallelic_loci_samples_nomono <- many_multiallelic_loci_samples[many_multiallelic_loci_samples$norm.reads.locus != 1,]
+
+# rank alleles from major to minor
+many_multiallelic_loci_samples_nomono <- many_multiallelic_loci_samples_nomono %>%
+  group_by(SampleID, resmarker) %>%
+  mutate(rank = row_number()) %>%
+  ungroup() 
+
+#calculate error: deviation from the mean freq
+many_multiallelic_loci_samples_nomono <- many_multiallelic_loci_samples_nomono %>%
+  group_by(SampleID, n.alleles, rank) %>%
+  mutate(dev_from_mean = abs(mean(norm.reads.locus)- norm.reads.locus))
+
+#format for plot
+error_stats <- many_multiallelic_loci_samples_nomono %>%
+  group_by(SampleID) %>%
+  summarise(resmarkers = paste(unique(resmarker), collapse = "___"),
+            dev_from_mean = first(dev_from_mean),
+            n.alleles = (first(n.alleles))) %>%
+  ungroup()
+
+#remove resmarkers with no comparisons
+error_stats <- error_stats[grepl("___", error_stats$resmarkers),]
+
+
+ggplot(error_stats, aes(x = n.alleles, y = dev_from_mean, color = resmarkers))+
+  #geom_boxplot()+
+  geom_jitter(alpha = 0.5, size = 3, width = 0.2)+
+  facet_wrap(~resmarkers)+
+  theme_minimal()+
+  labs(
+    title = "Error by amps with the same number of alleles",
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),  
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
+  )
+#
 
 
 

@@ -47,6 +47,8 @@ generate_numbers_summing_to_1 <- function(n) {
 
 max_haplos <- 5
 individuals <- 1000
+res_loci <- c("HAP1", "HAP2", "HAP3", "HAP4")
+res_variants <- c("A", "B", "C", "D", "E")
 
 SIM_DATA <- list()
 
@@ -82,9 +84,6 @@ for (n in c(2:max_haplos)){
     
     ############# GENERATE HAPLOTYPES (((NAMES DON'T MEAN ANYTHING!! IT'S JUST FOR FAPR COMPATBITLITY)))
     
-    res_loci <- c("HAP1", "HAP2", "HAP3", "HAP4", "HAP5","HAP6", "HAP7")
-    res_variants <- c("A", "B", "C", "D", "E", "F", "G")
-    
     genos <- data.frame()
     
     for (locus in res_loci){
@@ -105,8 +104,8 @@ for (n in c(2:max_haplos)){
     }
     
     #make the last locus always n_haplos number of variants 
-    genos <- genos[genos$locus != "HAP7",]
-    HAP7 <- as.data.frame(cbind(locus = "HAP7", genotype = res_variants[1:n_haplos]))
+    genos <- genos[genos$locus != last(res_loci),]
+    HAP7 <- as.data.frame(cbind(locus = last(res_loci), genotype = res_variants[1:n_haplos]))
     genos<- rbind(genos, HAP7)
     
     ############# MERGE HAPLOTYPES WITH FREQUENCIES
@@ -154,7 +153,7 @@ check_SIM_DATA <- SIM_DATA %>%
 # all markers there? must be 7
 length(unique(check_SIM_DATA$resmarker))
 
-# all freqs = 1? must be 2100 == 300 * 7
+# all freqs = 1?
 sum(check_SIM_DATA$total_freq) == length(unique(check_SIM_DATA$SampleID)) * length(unique(check_SIM_DATA$resmarker))
 
 
@@ -462,7 +461,7 @@ for (data in 1:length(SIM_DATA_list)){
   COI_SIM_DATA <- COI_SIM_DATA_list[[data]]
   
   # 2) run fapr
-  RESULTS_FAPR <- FAPR(SIM_DATA, COI_SIM_DATA, verbose = FALSE)
+  RESULTS_FAPR <- FAPR(SIM_DATA, COI_SIM_DATA, verbose = F)
   
   # 3) save results
   saveRDS(RESULTS_FAPR, paste0("FAPR_RESULTS_", data_name))
@@ -486,9 +485,9 @@ COI_SIM_DATA_list <- setNames(lapply(coi_data_files, readRDS), coi_data_files)
 fapr_results_files <- list.files(pattern = "^FAPR_RESULTS_SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
 FAPR_RESULTS_list <- setNames(lapply(fapr_results_files, readRDS), fapr_results_files)
 
-# Remove columns 2 to 8 from all data frames in FAPR_RESULTS_list
+# Remove individual hap variants from all data frames in FAPR_RESULTS_list
 FAPR_RESULTS_list <- lapply(FAPR_RESULTS_list, function(df) {
-  df[, -c(2:8)] # Keep all columns except 2 to 8
+  df[, c(1, (ncol(df)-2):ncol(df))]
 })
 
 # Order rows by HAPLO_FREQ_RECALC for each unique SampleID in FAPR_RESULTS_list
@@ -1039,13 +1038,14 @@ error_stats <- many_multiallelic_loci_samples_nomono %>%
             n.alleles = (first(n.alleles))) %>%
   ungroup()
 
-#remove resmarkers with no comparisons
+#remove resmarkers with no comparisons or zero error
 error_stats <- error_stats[grepl("___", error_stats$resmarkers),]
+error_stats <- error_stats[error_stats$dev_from_mean != 0,]
 
 
-ggplot(error_stats, aes(x = n.alleles, y = dev_from_mean, color = resmarkers))+
-  #geom_boxplot()+
-  geom_jitter(alpha = 0.5, size = 3, width = 0.2)+
+ggplot(error_stats, aes(x = as.factor(n.alleles), y = dev_from_mean, color = resmarkers, fill = resmarkers))+
+  geom_boxplot(outliers = F, alpha = 0.35)+
+  geom_jitter(alpha = 0.5, size = 3, width = 0.1)+
   facet_wrap(~resmarkers)+
   theme_minimal()+
   labs(

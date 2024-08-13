@@ -1,12 +1,12 @@
-##############################----------------------------------------------------------------------------------------
+##############################
 ##### PHASING WITH FAPR ######
 ##############################
 
 library(future.apply)
 
-FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL, verbose = TRUE) {
+FAPR <- function(MICROHAP_DATA, COI_DATA = NULL, verbose = TRUE) {
   
-  unique_resmarkers <- unique(SIM_DATA$resmarker)
+  unique_resmarkers <- unique(MICROHAP_DATA$resmarker)
   
   RESULTS_FINAL <- data.frame(
     SampleID = character(0), 
@@ -19,7 +19,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL, verbose = TRUE) {
   colnames(RESULTS_FINAL)[2:(1 + length(unique_resmarkers))] <- unique_resmarkers
   
   # Extract unique sample names
-  unique_samples <- unique(SIM_DATA$SampleID)
+  unique_samples <- unique(MICROHAP_DATA$SampleID)
   
   # Set up parallel backend
   plan(multisession, workers = parallel::detectCores() - 2)  # Adjust the number of workers as needed
@@ -31,7 +31,7 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL, verbose = TRUE) {
     MOST_LIKELY_HAPLOS <- data.frame()
     MOST_LIKELY_HAPLOS_FREQS <- data.frame()
     
-    unique_resmarkers <- unique(SIM_DATA$resmarker)
+    unique_resmarkers <- unique(MICROHAP_DATA$resmarker)
     
     RESULTS <- data.frame(
       SampleID = character(0), 
@@ -44,12 +44,12 @@ FAPR <- function(SIM_DATA, COI_SIM_DATA = NULL, verbose = TRUE) {
     colnames(RESULTS)[2:(1 + length(unique_resmarkers))] <- unique_resmarkers
     
     # 1) Select sample
-    sID <- SIM_DATA[SIM_DATA$SampleID == sample,]
+    sID <- MICROHAP_DATA[MICROHAP_DATA$SampleID == sample,]
     sID$norm.reads.locus <- round(sID$norm.reads.locus, 4)
     
     # 2) Select sample's COI
-    if (!is.null(COI_SIM_DATA)) {  
-      COI <- COI_SIM_DATA[COI_SIM_DATA$SampleID == sample,]$COI  
+    if (!is.null(COI_DATA)) {  
+      COI <- COI_DATA[COI_DATA$SampleID == sample,]$COI  
     } else { 
       COI <- max(table(sID$resmarker)) 
     }

@@ -40,9 +40,7 @@ for (data in 1:length(SIM_DATA_list)){
 }
 
 
-# EVALUATION -----------
-
-# 1) arrange data
+# EVALUATION 1:  ARRANGE DATA -----------
 
 # Get all SIM_DATA and COI_SIM_DATA files
 sim_data_files <- list.files(pattern = "^SIM_DATA_haps_.*_ind_.*_max_change_.*\\.RDS")
@@ -73,6 +71,8 @@ clean_data <- FAPR_RESULTS_list[[clean_data_filename]]
 # Remove clean data from list
 FAPR_RESULTS_list <- FAPR_RESULTS_list[!names(FAPR_RESULTS_list) %in% clean_data_filename]
 
+
+# EVALUATION 2:  CALCULATE PRECISION -----------
 
 # 2) Precision against noise. How does precision behaves when introducing noise to the data for each COI?
 comparison_results_list <- list()
@@ -177,7 +177,6 @@ eval_adj_relabun
 ggsave("eval_adj_relabun.png", eval_adj_relabun, dpi = 300, width = 14, height = 10, bg = "white")
 
 
-
 # same plot as above but simpler and w/ 95% CI
 
 # Define a function to calculate the median of a sample
@@ -239,6 +238,8 @@ ggsave("median_CI_precision_plot.png", median_precision_plot, dpi = 300, width =
 
 
 
+# EVALUATION 3:  ANALYSE EVENNESS -----------
+
 # 3) check evenness from allele data to see the correlation between precision and evenness. is precision given by the evennes of the individual resmarker freqs?
 
 # Apply this to each element in SIM_DATA_list
@@ -297,11 +298,12 @@ corrplot(cor_matrix, method = "circle", type = "upper",
          addCoef.col = "black", 
          order = "hclust") 
 
+
+# EVALUATION 4:  EVENNESS VS PRECISION -----------
+
 # merge with precision
 evenness_precision <- merge(evenness_means, combined_comparison_results[c("SampleID", "unique_haplotypes_clean", "Precision", "max_change")], by = c("SampleID", "max_change"))
 
-
-#PLOTS
 
 # Customize facet labels with "MOI = " and "noise = " prefixes
 facet_labels <- labeller(

@@ -375,5 +375,56 @@ ev_pres_plot_max_Freq
 
 ggsave("evenness_presicion_max_freq_plot.png", ev_pres_plot_max_Freq, dpi = 300, width = 20, height = 14, bg = "white")
 
-# EVALUATION 5:  RMSE OF FREQ FROM TP -----------
+# EVALUATION 5:  RMSE OF FREQ -----------
+
+for_rmse <- combined_comparison_results[complete.cases(combined_comparison_results),]
+
+facet_labels <- labeller(
+  unique_haplotypes_clean = function(x) paste("MOI = ", x)
+)
+
+ggplot(for_rmse, aes(x = as.factor(max_change), y = RMSE, color = as.factor(max_change), fill = as.factor(max_change)))+
+  geom_boxplot(alpha = 0.35)+
+  #geom_jitter(alpha = 0.1)+
+  facet_wrap(~unique_haplotypes_clean, , "free_x", nrow = 2, labeller = facet_labels)+
+  theme_minimal()+
+  theme(
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
+  )
+
+
+# EVALUATION 6:  RMSE VS EVENNESS -----------
+
+rmse_evenness <- merge(evenness_means, for_rmse[c("SampleID", "max_change", "RMSE")], by = c("SampleID", "max_change"))
+
+facet_labels <- labeller(
+  max_change = function(x) paste("Noise = ", x)
+)
+
+ggplot(rmse_evenness, aes(x = mean_Shannon_EH, y = RMSE, color = max_change)) +
+  geom_jitter(width = 0.02, height = 0.02, size = 1, alpha = 0.35) + 
+  geom_smooth(method = "lm", color = "grey60") +
+  facet_wrap(~ max_change, scales = "free_x", nrow = 2, labeller = facet_labels) +
+  xlim(0, NA) +
+  theme_minimal(base_size = 12) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA),
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Mean Shannon's Equitability Index (EH)",
+    y = "RMSE",
+    title = ""
+  )
 

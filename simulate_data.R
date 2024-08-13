@@ -44,11 +44,10 @@ generate_numbers_summing_to_1 <- function(n) {
 
 
 ##### GENERATE DATA
-
-max_haplos <- 5
+max_haplos <- 5 #from real data
 individuals <- 1000
 res_loci <- c("HAP1", "HAP2", "HAP3", "HAP4")
-res_variants <- c("A", "B", "C", "D", "E")
+res_variants <- c("A", "B", "C", "D", "E", "F")
 
 SIM_DATA <- list()
 
@@ -933,10 +932,47 @@ data_all$resmarker <- paste(data_all$Gene, data_all$MicrohapIndex, sep = "_")
 # Keep only resmarkers of interest
 data_all <- data_all[data_all$resmarker %in% c("dhps_431/436/437", "dhps_540/581", "dhfr_16/51/59", "dhfr_108/164"),]
 
-#run fapr just for fn
+#how many alleles per haplo?
+data_all %>%
+  group_by(resmarker) %>%
+  summarise(length(unique(Microhaplotype)))
+
+
+#run fapr
+#data_all <- data_all[, c("SampleID", "GeneID", "Gene", "MicrohapIndex", "RefMicrohap", "Microhaplotype", "MicrohapRefAlt", "Reads", "resmarker", "norm.reads.locus")]
+
+total_haplos <- length(unique(data_all$resmarker))
+data_all <- data_all %>% # keep samples with all haplos. if not, fapr collapses
+  group_by(SampleID) %>%
+  filter(length(unique(resmarker)) == total_haplos) %>%
+  ungroup()
+
 r_real_data <- FAPR(data_all)
 
-r
+r_real_data
+
+#plot phased haplotypes freq
+r_real_data_multiallelic <- r_real_data[r_real_data$HAPLO_FREQ_RECALC < 1,] #keep multiallelic
+
+haplotype_counts <- r_real_data_multiallelic %>% #summarise data
+  group_by(haplotype) %>%
+  summarise(
+    hap_count = n(), 
+    medianHAPLO_FREQ_RECALC = median(HAPLO_FREQ_RECALC, na.rm = TRUE)
+  ) %>%
+  arrange(desc(hap_count))
+
+thresh <- 10
+haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better vis
+
+ggplot(haplotype_df, aes(x = reorder(haplotype, hap_count), y = hap_count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = sprintf("%.2f", medianHAPLO_FREQ_RECALC)), 
+            hjust = -0.1, size = 3.5, color = "black") + # Adjust hjust and size as needed
+  coord_flip() +  
+  theme_minimal() +
+  labs(x = "Phased Haplotype", y = paste0("Count > ", thresh), title = "")
+
 
 # calculate evenness metrics
 evenness_real_data <- data_all %>%
@@ -1062,6 +1098,32 @@ ggplot(error_stats, aes(x = as.factor(n.alleles), y = dev_from_mean, color = res
     legend.position = "none"
   )
 #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

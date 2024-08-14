@@ -19,10 +19,10 @@ data_all <- data.frame()
 
 pb <- progress_bar$new(
   format = "[:bar] :percent ETA: :eta",
-  total = length(dir_ls(path = directory_path, regexp = "_RESULTS_v0.1.8_FILTERED$"))
+  total = length(dir_ls(path = directory_path, regexp = "_FILTERED$", ignore.case = TRUE))
 )
 
-for (folder_path in dir_ls(path = directory_path, regexp = "_RESULTS_v0.1.8_FILTERED$")) {
+for (folder_path in dir_ls(path = directory_path, regexp = "_FILTERED$", ignore.case = TRUE)) {
   pb$tick() 
   
   folder_name <- path_file(folder_path)

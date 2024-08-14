@@ -224,10 +224,11 @@ ggplot(error_stats, aes(x = as.factor(n.alleles), y = dev_from_mean, color = res
 ## FAPR TEST --------
 
 #run fapr
-r_real_data <- FAPR(data_all)
+r_real_data <- FAPR(data_all, verbose = F)
 
 #plot phased haplotypes freq
 r_real_data_multiallelic <- r_real_data[r_real_data$HAPLO_FREQ_RECALC < 1,] #keep multiallelic
+r_real_data_multiallelic <- r_real_data_multiallelic[r_real_data_multiallelic$HAPLO_FREQ_RECALC != 0,] #remove any ceros (WHY ARE THERE CEROS AFTER INCLUDING ANC DATA?)
 
 haplotype_counts <- r_real_data_multiallelic %>% #summarise data
   group_by(haplotype) %>%

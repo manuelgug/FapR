@@ -10,6 +10,7 @@ library(fs)
 library(stringr)
 library(boot)
 library(tidyr)
+library(broom)
 
 source("calculate_diversity_metrics.R")
 source("FAPR.R")
@@ -220,6 +221,54 @@ ggplot(error_stats, aes(x = as.factor(n.alleles), y = dev_from_mean, color = res
 #RESULT: biallelic samples vary mostly below 0.05, with a max at about 0.25 when 3 amps have 2 alleles. there was only one instance of a sample with 3 alleles for more than 1 amplicon and it varied 0.2
 # i guess a reasonable range of noise to add to simulated data would be from 0.05 to 0.4 just to stretch it a little
 
+### Q4) IS THERE A CORRELATION BETWEEN IN-SAMPLE FREQ VS OVERALL FREQ FOR EACH VARIANT OF EACH AMPLICON? ----------
+#this would be useful to know for even freqs correction with pop freqs of variants
+
+resmarker_cor <- many_multiallelic_loci_samples_nomono %>%
+  group_by(resmarker, Microhaplotype) %>%
+  summarise(Microhaplotype_counts = as.vector(table(Microhaplotype))) %>%
+  group_by(resmarker) %>%
+  mutate(freq =  Microhaplotype_counts/sum(Microhaplotype_counts))
+
+resmarker_cor <- merge(resmarker_cor, many_multiallelic_loci_samples_nomono[c("Microhaplotype", "norm.reads.locus")], by = c("Microhaplotype"))
+
+# Compute correlation for each resmarker
+cor_results <- resmarker_cor %>%
+  group_by(resmarker) %>%
+  do({
+    cor_test <- cor.test(.$freq, .$norm.reads.locus, method = "spearman", exact = FALSE)
+    tibble(
+      cor_coef = round(cor_test$estimate, 2),
+      p_val = formatC(cor_test$p.value, format = "e", digits = 2)
+    )
+  }) %>%
+  ungroup()
+
+# Merge correlation results with the original data
+resmarker_cor <- resmarker_cor %>%
+  left_join(cor_results, by = "resmarker")
+
+# Plot the results
+ggplot(resmarker_cor, aes(x = freq, y = norm.reads.locus, color = freq)) +
+  geom_jitter(width = 0.005, height = 0, alpha = 0.2, size = 4) +
+  theme_minimal() +
+  facet_wrap(~resmarker) +
+  geom_smooth(method = "lm", color = "grey30", fill = "grey60") +
+  geom_text(aes(label = paste("r =", cor_coef, "\n", "p =", p_val)),
+            x = Inf, y = -Inf, hjust = 1.1, vjust = -1.1, size = 4, color = "black", check_overlap = TRUE) +
+  scale_color_gradient(low = "steelblue", high = "red") +  
+  scale_fill_gradient(low = "steelblue", high = "red") +
+  guides(color = "none") +
+  labs(
+    x = "",
+    y = "Within-Sample Haplotype Frequency",
+    title = "",
+    subtitle = "Multiallelic samples only"
+  )
+
+# RESULT: there seems to be a correlation: the more frequent in the pop the variant, the higher in-sample freq it tends to have. so, I could correct even freqs actually!
+
+
 
 ## FAPR TEST --------
 
@@ -280,7 +329,7 @@ cor_coef <- round(cor_test$estimate, 2)
 p_val <- formatC(cor_test$p.value, format = "e", digits = 2)
 
 ggplot(haplo_cor, aes(x = freq, y = HAPLO_FREQ_RECALC, color = freq)) +
-  geom_jitter(width = 0.005, height = 0, alpha = 0.1, size = 4) +
+  geom_jitter(width = 0.005, height = 0, alpha = 0.2, size = 4) +
   theme_minimal() +
   geom_smooth(method = "lm", color = "grey30", fill = "grey60") +
   annotate("text", x = Inf, y = -Inf, label = paste("r =", cor_coef, "\n", "p =", p_val),

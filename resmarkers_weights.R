@@ -3,9 +3,9 @@ library(dplyr)
 library(tidyr)
 
 
-filename <- "../pf-haploatlas-PF3D7_0417200_population_summary.csv" #downloaded from https://pf-haploatlas.streamlit.app/
+filename <- "../resources/pf-haploatlas-PF3D7_0417200_population_summary.csv" #downloaded from https://pf-haploatlas.streamlit.app/
 real_haplo_counts <- read.csv(filename)
-gene_names <- read.csv("../pf_gene_names.csv") # downloaded from https://plasmodb.org/plasmo/app/step/434333253/download
+gene_names <- read.csv("../resources/pf_gene_names.csv") # downloaded from https://plasmodb.org/plasmo/app/step/434333253/download
 
 ## format table
 row.names(real_haplo_counts)<-real_haplo_counts$ns_changes

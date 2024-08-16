@@ -226,6 +226,21 @@ ggplot(error_stats, aes(x = as.factor(n.alleles), y = dev_from_mean, color = res
 #run fapr
 r_real_data <- FAPR(data_all, verbose = F)
 
+#order gene columns by locus
+exclude_cols <- c("SampleID", "HAPLO_FREQ", "HAPLO_FREQ_RECALC")
+
+cols_to_reorder <- setdiff(colnames(r_real_data), exclude_cols)
+
+ordered_colnames <- cols_to_reorder[order(sapply(cols_to_reorder, function(x) {
+  num <- as.numeric(unlist(regmatches(x, gregexpr("\\d+", x))))
+  if (length(num) > 0) min(num) else Inf
+}))]
+
+r_real_data <- r_real_data[, c(exclude_cols[1], ordered_colnames, exclude_cols[2:3])]
+
+r_real_data$haplotype <- apply(r_real_data[, ordered_colnames], 1, function(row) {paste(row, collapse = "_")})
+
+
 #plot phased haplotypes freq
 r_real_data_multiallelic <- r_real_data[r_real_data$HAPLO_FREQ_RECALC < 1,] #keep multiallelic
 r_real_data_multiallelic <- r_real_data_multiallelic[r_real_data_multiallelic$HAPLO_FREQ_RECALC != 0,] #remove any ceros (WHY ARE THERE CEROS AFTER INCLUDING ANC DATA?)
@@ -241,15 +256,16 @@ haplotype_counts <- r_real_data_multiallelic %>% #summarise data
 haplotype_counts <- haplotype_counts %>%
   mutate(freq = hap_count/sum(hap_count))
 
-thresh <- 10
+thresh <- 0
 haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better vis
 
-ggplot(haplotype_df, aes(x = reorder(haplotype, hap_count), y = hap_count)) +
+ggplot(haplotype_df, aes(x = reorder(haplotype, hap_count), y = freq)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   geom_text(aes(label = sprintf("%.2f", median_HAPLO_FREQ_RECALC)), 
             hjust = -0.1, size = 3.5, color = "black") + # Adjust hjust and size as needed
   coord_flip() +  
   theme_minimal() +
-  labs(x = "Phased Haplotype", y = paste0("Count > ", thresh), title = "")
+  labs(x = "Phased Haplotype", y = paste0("Count > ", thresh), title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")))
+
 
 

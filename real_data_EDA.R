@@ -270,32 +270,41 @@ haplotype_counts <- haplotype_counts %>%
 haplotype_counts <- haplotype_counts %>%
   mutate(freq = hap_count/sum(hap_count))
 
+
 # Perform the correlation test
-cor_test <- cor.test(haplotype_counts$freq, haplotype_counts$median_HAPLO_FREQ_RECALC, method = "spearman", exact = F)
+haplo_cor <- merge(haplotype_counts[c("haplotype", "freq")], r_real_data_multiallelic[c("SampleID", "haplotype", "HAPLO_FREQ_RECALC")], by = c("haplotype"))
+cor_test <- cor.test(haplo_cor$freq, haplo_cor$HAPLO_FREQ_RECALC, method = "spearman", exact = F)
 
 # Extract the correlation coefficient and p-value
 cor_coef <- round(cor_test$estimate, 2)
 p_val <- formatC(cor_test$p.value, format = "e", digits = 2)
 
-ggplot(haplotype_counts, aes(x = freq, y = median_HAPLO_FREQ_RECALC)) +
-  geom_jitter(width = 0.025, height = 0, alpha = 0.3, color = "gray40", size = 4) +
+ggplot(haplo_cor, aes(x = freq, y = HAPLO_FREQ_RECALC, color = freq)) +
+  geom_jitter(width = 0.005, height = 0, alpha = 0.1, size = 4) +
   theme_minimal() +
-  geom_smooth(method = "lm", color = "red", fill = "pink2") +
+  geom_smooth(method = "lm", color = "grey30", fill = "grey60") +
   annotate("text", x = Inf, y = -Inf, label = paste("r =", cor_coef, "\n", "p =", p_val),
-           hjust = 1.1, vjust = -1.1, size = 4, color = "black")
+           hjust = 1.1, vjust = -1.1, size = 4, color = "black")+
+  scale_color_gradient(low = "steelblue", high = "red") +  
+  scale_fill_gradient(low = "steelblue", high = "red") +
+  guides(color = "none")+
+  labs(
+    x = "",
+    y = "Within-Sample Haplotype Frequency",
+    title = "",
+    subtitle = "Multiallelic samples only")
 
 thresh <- 0
-haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better vis
+haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better viz
 
 ggplot(haplotype_df, aes(x = reorder(haplotype, freq), y = freq)) +
   geom_bar(stat = "identity", fill = "steelblue") +
-  geom_text(aes(label = sprintf("%.2f", median_HAPLO_FREQ_RECALC)), 
-            hjust = -0.1, size = 3.5, color = "black") + 
-  coord_flip() +  
+  #geom_text(aes(label = sprintf("%.2f", median_HAPLO_FREQ_RECALC)), hjust = -0.1, size = 3.5, color = "black") +
+  coord_flip() +
   theme_minimal() +
-  labs(x = "Phased Haplotype", 
-       y = paste0("Frequency"), 
-       title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")), 
+  labs(x = "Phased Haplotype",
+       y = paste0("Frequency"),
+       title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")),
        subtitle = paste0("Present in > ", thresh, " multiallelic samples"))
 
 ggplot(haplotype_df, aes(x = reorder(haplotype, freq), y = median_HAPLO_FREQ_RECALC)) +

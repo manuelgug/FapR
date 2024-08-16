@@ -155,7 +155,7 @@ FAPR <- function(MICROHAP_DATA, COI_DATA = NULL, verbose = TRUE) {
   RESULTS_FINAL <- do.call(rbind, results_list)
   
   # Add haplotype name
-  RESULTS_FINAL$haplotype <- apply(RESULTS_FINAL[, 2:(ncol(RESULTS_FINAL)-2)], 1, paste, collapse = "_")
+  #RESULTS_FINAL$haplotype <- apply(RESULTS_FINAL[, 2:(ncol(RESULTS_FINAL)-2)], 1, paste, collapse = "_")
   
   return(RESULTS_FINAL)
 }

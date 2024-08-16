@@ -259,7 +259,7 @@ ggplot(resmarker_cor, aes(x = freq, y = norm.reads.locus, color = freq)) +
   scale_color_gradient(low = "steelblue", high = "red") +  
   scale_fill_gradient(low = "steelblue", high = "red") +
   labs(
-    x = "",
+    x = "freq",
     y = "Within-Sample Haplotype Frequency",
     title = "",
     subtitle = "Multiallelic samples only"
@@ -310,8 +310,8 @@ ggplot(resmarker_counts, aes(x = reorder(Microhaplotype, freq), y = median_norm.
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
-    x = "Phased Haplotype",
-    y = "Median Within-Sample MIcrohap Frequency (95% CI)",
+    x = "Microaplotype",
+    y = "Median Within-Sample Microhap Frequency (95% CI)",
     subtitle = "Multiallelic samples only") +
   coord_flip()+
   theme(

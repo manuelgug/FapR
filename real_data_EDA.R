@@ -79,8 +79,6 @@ print(paste("Total samples:", length(unique(data_all$SampleID))))
 
 
 
-
-
 #### Q1) HOW MANY UNIQUE HAPLOTYPES ARE THERE PER AMPLICON OF INTEREST? -----
 
 data_all %>%
@@ -286,7 +284,6 @@ ggplot(haplotype_counts, aes(x = freq, y = median_HAPLO_FREQ_RECALC)) +
   annotate("text", x = Inf, y = -Inf, label = paste("r =", cor_coef, "\n", "p =", p_val),
            hjust = 1.1, vjust = -1.1, size = 4, color = "black")
 
-
 thresh <- 0
 haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better vis
 
@@ -312,6 +309,5 @@ ggplot(haplotype_df, aes(x = reorder(haplotype, freq), y = median_HAPLO_FREQ_REC
     x = "Phased Haplotype",
     y = "Median Within-Sample Haplotype Frequency (95% CI)",
     title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")),
-    subtitle = paste0("Present in > multiallelic ", thresh, " samples")
-  ) +
+    subtitle = paste0("Present in > ", thresh, " multiallelic samples")) +
   coord_flip()

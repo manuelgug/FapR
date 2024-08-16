@@ -3,7 +3,7 @@ library(dplyr)
 library(tidyr)
 
 
-filename <- "../resources/pf-haploatlas-PF3D7_0417200_population_summary.csv" #downloaded from https://pf-haploatlas.streamlit.app/
+filename <- "../resources/pf-haploatlas-PF3D7_0810800_population_summary.csv" #downloaded from https://pf-haploatlas.streamlit.app/
 real_haplo_counts <- read.csv(filename)
 gene_names <- read.csv("../resources/pf_gene_names.csv") # downloaded from https://plasmodb.org/plasmo/app/step/434333253/download
 
@@ -90,6 +90,7 @@ for (mut in all_wt_ns_unique_mutations) {
 gene_ID <- sub(".*-(PF3D7_\\d+)_population_summary\\.csv$", "\\1",  basename(filename))
 
 gene_names$Gene.Name.or.Symbol <- tolower(gene_names$Gene.Name.or.Symbol)
+gene_names$Gene.Name.or.Symbol <- gsub("pppk-", "", gene_names$Gene.Name.or.Symbol)
 
 gene <- gene_names[gene_names$Gene.ID %in% gene_ID, ]$Gene.Name.or.Symbol
 gene <- sub("-.*", "", gene)

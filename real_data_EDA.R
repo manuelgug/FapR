@@ -258,15 +258,74 @@ ggplot(resmarker_cor, aes(x = freq, y = norm.reads.locus, color = freq)) +
             x = Inf, y = -Inf, hjust = 1.1, vjust = -1.1, size = 4, color = "black", check_overlap = TRUE) +
   scale_color_gradient(low = "steelblue", high = "red") +  
   scale_fill_gradient(low = "steelblue", high = "red") +
-  guides(color = "none") +
   labs(
     x = "",
     y = "Within-Sample Haplotype Frequency",
     title = "",
     subtitle = "Multiallelic samples only"
+  )+
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),  
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA)
+  )
+
+# Function to calculate the median
+median_fn <- function(data, indices) {
+  return(median(data[indices], na.rm = TRUE))
+}
+
+resmarker_counts <- many_multiallelic_loci_samples_nomono %>% 
+  group_by(resmarker, Microhaplotype) %>%
+  summarise(
+    hap_count = n(),
+    median_norm.reads.locus= median(norm.reads.locus, na.rm = TRUE),
+    ci_norm.reads.locus= ifelse(hap_count > 1, {
+      # Bootstrap for CI
+      boot_result <- boot(norm.reads.locus, median_fn, R = 1000)
+      boot_ci <- boot.ci(boot_result, type = "perc")$percent[4:5] # 95% CI
+      paste0(boot_ci[1], "-", boot_ci[2])
+    }, NA)
+  ) %>%
+  arrange(desc(hap_count))
+
+resmarker_counts <- resmarker_counts %>%
+  separate(ci_norm.reads.locus, into = c("low_CI", "high_CI"), sep = "-", convert = TRUE)
+
+resmarker_counts <- resmarker_counts %>%
+  mutate(freq = hap_count/sum(hap_count))
+
+
+ggplot(resmarker_counts, aes(x = reorder(Microhaplotype, freq), y = median_norm.reads.locus)) +
+  geom_errorbar(aes(ymin = low_CI, ymax = high_CI, color = freq), width = 0.8) +
+  geom_point(aes(color = freq), size = 4, shape = 16) +  
+  facet_wrap(~resmarker, scales = "free")+
+  ylim(0,1)+
+  scale_color_gradient(low = "steelblue", high = "red") +  
+  scale_fill_gradient(low = "steelblue", high = "red") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    x = "Phased Haplotype",
+    y = "Median Within-Sample MIcrohap Frequency (95% CI)",
+    subtitle = "Multiallelic samples only") +
+  coord_flip()+
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),  
+    strip.text = element_text(size = 10, face = "bold", hjust = 0),  
+    strip.placement = "top",  
+    panel.background = element_rect(fill = "white", color = "black"), 
+    panel.grid.major = element_line(color = "grey90"), 
+    panel.grid.minor = element_line(color = "grey90"),
+    panel.border = element_rect(color = "black", fill = NA)
   )
 
 # RESULT: there seems to be a correlation: the more frequent in the pop the variant, the higher in-sample freq it tends to have. so, I could correct even freqs actually!
+
 
 
 

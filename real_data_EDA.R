@@ -8,6 +8,8 @@ library(ggplot2)
 library(progress)
 library(fs)
 library(stringr)
+library(boot)
+library(tidyr)
 
 source("calculate_diversity_metrics.R")
 source("FAPR.R")
@@ -245,27 +247,71 @@ r_real_data$haplotype <- apply(r_real_data[, ordered_colnames], 1, function(row)
 r_real_data_multiallelic <- r_real_data[r_real_data$HAPLO_FREQ_RECALC < 1,] #keep multiallelic
 r_real_data_multiallelic <- r_real_data_multiallelic[r_real_data_multiallelic$HAPLO_FREQ_RECALC != 0,] #remove any ceros (WHY ARE THERE CEROS AFTER INCLUDING ANC DATA?)
 
-haplotype_counts <- r_real_data_multiallelic %>% #summarise data
+# Function to calculate the median
+median_fn <- function(data, indices) {
+  return(median(data[indices], na.rm = TRUE))
+}
+
+haplotype_counts <- r_real_data_multiallelic %>% 
   group_by(haplotype) %>%
   summarise(
-    hap_count = n(), 
+    hap_count = n(),
     median_HAPLO_FREQ_RECALC = median(HAPLO_FREQ_RECALC, na.rm = TRUE),
+    ci_HAPLO_FREQ_RECALC = ifelse(hap_count > 1, {
+      # Bootstrap for CI
+      boot_result <- boot(HAPLO_FREQ_RECALC, median_fn, R = 1000)
+      boot_ci <- boot.ci(boot_result, type = "perc")$percent[4:5] # 95% CI
+      paste0(boot_ci[1], "-", boot_ci[2])
+    }, NA)
   ) %>%
   arrange(desc(hap_count))
 
 haplotype_counts <- haplotype_counts %>%
+  separate(ci_HAPLO_FREQ_RECALC, into = c("low_CI", "high_CI"), sep = "-", convert = TRUE)
+
+haplotype_counts <- haplotype_counts %>%
   mutate(freq = hap_count/sum(hap_count))
+
+# Perform the correlation test
+cor_test <- cor.test(haplotype_counts$freq, haplotype_counts$median_HAPLO_FREQ_RECALC, method = "spearman", exact = F)
+
+# Extract the correlation coefficient and p-value
+cor_coef <- round(cor_test$estimate, 2)
+p_val <- formatC(cor_test$p.value, format = "e", digits = 2)
+
+ggplot(haplotype_counts, aes(x = freq, y = median_HAPLO_FREQ_RECALC)) +
+  geom_jitter(width = 0.025, height = 0, alpha = 0.3, color = "gray40", size = 4) +
+  theme_minimal() +
+  geom_smooth(method = "lm", color = "red", fill = "pink2") +
+  annotate("text", x = Inf, y = -Inf, label = paste("r =", cor_coef, "\n", "p =", p_val),
+           hjust = 1.1, vjust = -1.1, size = 4, color = "black")
+
 
 thresh <- 0
 haplotype_df <- haplotype_counts[haplotype_counts$hap_count > thresh,] #filter > n for better vis
 
-ggplot(haplotype_df, aes(x = reorder(haplotype, hap_count), y = freq)) +
+ggplot(haplotype_df, aes(x = reorder(haplotype, freq), y = freq)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   geom_text(aes(label = sprintf("%.2f", median_HAPLO_FREQ_RECALC)), 
-            hjust = -0.1, size = 3.5, color = "black") + # Adjust hjust and size as needed
+            hjust = -0.1, size = 3.5, color = "black") + 
   coord_flip() +  
   theme_minimal() +
-  labs(x = "Phased Haplotype", y = paste0("Count > ", thresh), title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")))
+  labs(x = "Phased Haplotype", 
+       y = paste0("Frequency"), 
+       title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")), 
+       subtitle = paste0("Present in > ", thresh, " multiallelic samples"))
 
-
-
+ggplot(haplotype_df, aes(x = reorder(haplotype, freq), y = median_HAPLO_FREQ_RECALC)) +
+  geom_errorbar(aes(ymin = low_CI, ymax = high_CI, color = freq), width = 0.8) +
+  geom_point(aes(color = freq), size = 4, shape = 16) +  
+  scale_color_gradient(low = "steelblue", high = "red") +  
+  scale_fill_gradient(low = "steelblue", high = "red") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    x = "Phased Haplotype",
+    y = "Median Within-Sample Haplotype Frequency (95% CI)",
+    title = paste0("Order: ", paste(ordered_colnames, collapse = ", ")),
+    subtitle = paste0("Present in > multiallelic ", thresh, " samples")
+  ) +
+  coord_flip()
